@@ -1,0 +1,21 @@
+# VS Code 설정 및 임시 데이터 제외
+.vscode/
+*.vc.db
+*.vc.db-shm
+*.vc.db-wal
+
+# 파이썬 컴파일/캐시 파일 제외
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ROS2 빌드 및 로그 폴더 제외
+build/
+install/
+log/
+colcon.env
+
+# 기타 OS 임시 파일
+.DS_Store
+Thumbs.db
