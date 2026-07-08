@@ -27,10 +27,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'path_plan_node = rokey.path_plan_node:main',
-            'skeleton_processor_node = rokey.skeleton_processor_node:main',
-            'lifecycle_manage_node = rokey.lifecycle_manage_node:main',
-            'sandart_movesx_node = rokey.sandart_movesx_node:main',
+            'path_plan_node = sandart.path_plan_node:main',
+            'skeleton_processor_node = sandart.skeleton_processor_node:main',
+            'lifecycle_manage_node = sandart.lifecycle_manage_node:main',
+            'sandart_movesx_node = sandart.sandart_movesx_node:main',
         ],
     },
 )
