@@ -1,0 +1,6 @@
+sandart_msgs/SandStroke[] path1
+sandart_msgs/SandStroke[] path2
+sandart_msgs/SandStroke[] path3
+---
+bool accepted
+string message

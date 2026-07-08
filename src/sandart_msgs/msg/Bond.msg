@@ -1,0 +1,5 @@
+string id
+string instance_id
+bool active
+float64 heartbeat_timeout
+float64 heartbeat_period

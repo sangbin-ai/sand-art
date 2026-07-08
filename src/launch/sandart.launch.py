@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    path_plan = Node(
+        package="rokey",
+        executable="path_plan_node",
+        name="path_plan_node",
+        output="screen",
+    )
+
+    skeleton_processor = Node(
+        package="rokey",
+        executable="skeleton_processor_node",
+        name="skeleton_processor_node",
+        output="screen",
+    )
+
+    lifecycle_manager = Node(
+        package="rokey",
+        executable="lifecycle_manage_node",
+        name="lifecycle_manage_node",
+        output="screen",
+    )
+
+    sandart_movesx = Node(
+        package="rokey",
+        executable="sandart_movesx_node",
+        name="sandart_movesx_node",
+        output="screen",
+    )
+
+    return LaunchDescription([
+        path_plan,
+        skeleton_processor,
+        lifecycle_manager,
+        sandart_movesx,
+    ])
