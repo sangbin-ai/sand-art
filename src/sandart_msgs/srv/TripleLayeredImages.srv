@@ -1,7 +1,6 @@
 sensor_msgs/Image level0_outer_thickest
 sensor_msgs/Image level1_middle
 sensor_msgs/Image level2_inner_thinnest
-sensor_msgs/Image full_color_skeleton
 ---
 bool accepted
 string message

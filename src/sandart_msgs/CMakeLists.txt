@@ -14,7 +14,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SandStroke.msg"
   "msg/Bond.msg"
   "srv/PathPlanList.srv"
-  "srv/TripleLayerdImages.srv"
+  "srv/TripleLayeredImages.srv"
   "srv/ProcessImage.srv"
   DEPENDENCIES sensor_msgs
 )

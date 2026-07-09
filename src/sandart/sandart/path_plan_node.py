@@ -2,7 +2,7 @@
 """
 sandart_path_planner.py
 
-서비스 /triple_layerd_images (요청: TripleLayerdImages.srv)
+서비스 /triple_layered_images (요청: TripleLayeredImages.srv)
   요청 : level0_outer_thickest, level1_middle, level2_inner_thinnest
          (팀원 쪽에서 이미 0~255 정규화 + 흑백화 + 스켈레톤화까지 끝낸 이미지)
   응답 : accepted(bool), message(string),
@@ -27,7 +27,7 @@ from datetime import datetime
 
 import uuid
 from sandart_msgs.msg import SandStroke, SandPoint, Bond
-from sandart_msgs.srv import TripleLayerdImages, PathPlanList
+from sandart_msgs.srv import TripleLayeredImages, PathPlanList
 
 
 CONFIG = {
@@ -248,25 +248,28 @@ class SandartPathPlannerNode(Node):
         super().__init__("path_plan_node")
 
         self.srv = self.create_service(
-            TripleLayerdImages, "triple_layerd_images", self.handle_edge_layers)
+            TripleLayeredImages, "triple_layered_images", self.handle_edge_layers)
         
         self.path_client = self.create_client(PathPlanList, "/dsr01/path_plan_list")
 
         self.bond_id = "path_planner_to_lifecycle"
         self.bond_instance_id = str(uuid.uuid4())
-        self.heartbeat_timeout = 3.0
+        self.heartbeat_timeout = 6.0
         self.heartbeat_period = 0.1
+        self.is_working = False
+        self.is_active = True
 
         self.bond_pub = self.create_publisher(Bond, "/bond", 10)
         self.bond_timer = self.create_timer(0.1, self.publish_bond)
 
-        self.get_logger().info("SandartPathPlannerNode 시작, /triple_layerd_images 서비스 대기 중...")
+        self.get_logger().info("SandartPathPlannerNode 시작, /triple_layered_images 서비스 대기 중...")
 
     def publish_bond(self):
         msg = Bond()
         msg.id = self.bond_id
         msg.instance_id = self.bond_instance_id
-        msg.active = True
+        msg.working = self.is_working
+        msg.active = self.is_active
         msg.heartbeat_timeout = self.heartbeat_timeout
         msg.heartbeat_period = self.heartbeat_period
         self.bond_pub.publish(msg)
@@ -280,6 +283,10 @@ class SandartPathPlannerNode(Node):
         ]
 
         result_paths = {}   # response 대신 로컬에 담기 (응답엔 path 필드 없음)
+
+        self.is_working = True
+        self.publish_bond()
+
         try:
             for field, img_msg, strength in levels:
                 img = image_msg_to_cv2(img_msg)
@@ -319,6 +326,10 @@ class SandartPathPlannerNode(Node):
                             f"path3={len(result_paths['path3'])} 스트로크, "
                             f"웨이포인트 {total_pts}개")
         self.get_logger().info(f"[OK] {response.message} ({txt_path} 저장됨)")
+
+        self.is_working = False
+        self.publish_bond()
+        
         return response
 
     def send_path_to_robot(self, result_paths):

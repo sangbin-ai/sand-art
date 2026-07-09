@@ -5,36 +5,36 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     path_plan = Node(
-        package="rokey",
+        package="sandart",
         executable="path_plan_node",
         name="path_plan_node",
         output="screen",
     )
 
     skeleton_processor = Node(
-        package="rokey",
+        package="sandart",
         executable="skeleton_processor_node",
         name="skeleton_processor_node",
         output="screen",
     )
 
     lifecycle_manager = Node(
-        package="rokey",
+        package="sandart",
         executable="lifecycle_manage_node",
         name="lifecycle_manage_node",
         output="screen",
     )
 
     sandart_movesx = Node(
-        package="rokey",
+        package="sandart",
         executable="sandart_movesx_node",
         name="sandart_movesx_node",
         output="screen",
     )
 
     return LaunchDescription([
-        path_plan,
-        skeleton_processor,
         lifecycle_manager,
+        skeleton_processor,
+        path_plan,
         sandart_movesx,
     ])

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-sandart_movesx_node.py
+sandart_movesx_node.py  (v3 로직 + 서비스 통신)
 
 두산 M0609 + ROS2 + DSR_ROBOT2 샌드아트 실행 엔진
 
@@ -11,7 +11,11 @@ sandart_movesx_node.py
   - Rx, Ry, Rz는 고정 자세 사용
   - Stroke 단위로 끊어서 그림
   - Stroke 사이에는 SAFE_Z로 상승 후 다음 Stroke 시작점으로 이동
-  - TXT 테스트와 추후 SRV/Custom Msg 구조를 동일하게 맞춤
+
+[v3 크리티컬 패스 - 유지]
+  force로 하강하며 접촉 감지(MAX_WAIT까지 대기), 접촉 순간
+  get_current_posx()로 실측 z를 읽어 movesx 전체 waypoint z에 반영.
+
 
 유지 기능:
   1) 중복 좌표 제거
@@ -20,26 +24,7 @@ sandart_movesx_node.py
   4) Lead In / Lead Out
   5) movesx chunk 실행
   6) SAFE_Z 접근/복귀
-  7) Compliance / Force Control
-
-TXT 입력 형식:
-  - x y
-  - x,y
-  - x,y,z  # z는 무시
-  - 빈 줄은 stroke 구분자로 사용
-
-예:
-  100 100
-  101 101
-  102 102
-
-  200 200
-  201 201
-  202 202
-
-나중에 SRV 연결 시:
-  - response.path1, response.path2, response.path3 각각은 SandStroke[]
-  - 각 SandStroke.points를 [[x,y], ...] 형태로 변환해서 execute_path()에 넣으면 됨
+  7) Compliance / Force Control (접촉 실측 z 반영)
 """
 
 import math
@@ -47,8 +32,11 @@ import os
 import rclpy
 import DR_init
 
-from rclpy.node import Node
-from sandart_msgs.srv import PathPlanList
+from rclpy.node import Node                     # [SRV] 서비스 노드용
+
+import uuid
+from sandart_msgs.msg import Bond
+from sandart_msgs.srv import PathPlanList       # [SRV] path 수신 서비스 타입
 
 # ================================================================
 # [1] Robot Config
@@ -62,20 +50,19 @@ DR_init.__dsr__model = ROBOT_MODEL
 # ================================================================
 # [2] Input / Run Config
 # ================================================================
-TXT_PATH = "/home/rokey/Downloads/path_points.txt"
 RUN_ROBOT = True
 
-# TXT에서는 하나의 path 안에 여러 stroke가 있다고 보고 실행
-# 나중에 SRV에서는 path1/path2/path3를 각각 execute_path()로 넘기면 됨
-
 # ================================================================
-# [3] Pose Config
+# [3] Pose Config  (v3 값 유지)
 # ================================================================
-SAFE_Z = 365.0
-DRAW_Z = 90.03
+SAFE_Z = 200.0
+DRAW_Z = 53.95
 
 # Force를 켜기 전 바로 DRAW_Z로 박지 않고, DRAW_Z보다 살짝 위에서 켠 뒤 천천히 내려감
-FORCE_APPROACH_OFFSET_Z = 0.0
+FORCE_APPROACH_OFFSET_Z = 10.0
+
+# 실측 접촉 z가 DRAW_Z에서 이 값 이상 벗어나면 경고 출력 (센서 오감지 의심용)
+CONTACT_Z_WARN_DEV = 15.0
 
 # Rz 추종 제거. 아래 자세로 고정해서 그림.
 BASE_RX = 83.34
@@ -105,66 +92,24 @@ USE_LEAD_IN_OUT = True
 LEAD_DIST = 3.0
 
 # ================================================================
-# [5] Force / Compliance Config
+# [5] Force / Compliance Config  (v3 값 유지)
 # ================================================================
 USE_FORCE_CONTROL = True
+DRAW_FORCE = 1.5
+DRAW_SPEED = 60
 
 # 순응제어 강성값 [x, y, z, rx, ry, rz]
 # Z값이 작을수록 위아래로 더 부드럽게 순응함.
-COMPLIANCE_STX = [3000, 3000, 1, 200, 200, 200]
+COMPLIANCE_STX = [3000, 3000, 100, 200, 200, 200]
 
 # 목표 힘 [Fx, Fy, Fz, Mx, My, Mz]
-DESIRED_FORCE_FD = [0, 0, -1, 0, 0, 0]
+DESIRED_FORCE_FD = [0, 0, -0.5, 0, 0, 0]
 DESIRED_FORCE_DIR = [0, 0, 1, 0, 0, 0]
 FORCE_SETTLE_WAIT = 0.3
 
 # ================================================================
 # [6] Basic Math Utils
 # ================================================================
-class SandEngineNode(Node):
-    def __init__(self):
-        super().__init__("sandart_movesx_node", namespace=ROBOT_ID)
-        self.srv = self.create_service(
-            PathPlanList, "path_plan_list", self.handle_path_plan_list)
-        self.get_logger().info("path_plan_list 서비스 대기 중...")
-
-    def handle_path_plan_list(self, request, response):
-        try:
-            path1 = path_from_sand_strokes(request.path1)
-            path2 = path_from_sand_strokes(request.path2)
-            path3 = path_from_sand_strokes(request.path3)
-        except Exception as e:
-            response.accepted = False
-            response.message = f"경로 변환 실패: {e}"
-            self.get_logger().error(response.message)
-            return response
-
-        total = len(path1) + len(path2) + len(path3)
-        if total == 0:
-            response.accepted = False
-            response.message = "받은 path가 비어 있습니다."
-            self.get_logger().warn(response.message)
-            return response
-
-        self.get_logger().info(
-            f"path 수신: path1={len(path1)}, path2={len(path2)}, path3={len(path3)} strokes")
-
-        try:
-            if RUN_ROBOT:
-                execute_response_paths(path1, path2, path3)
-            else:
-                self.get_logger().info("[DRY RUN] RUN_ROBOT=False, 로봇 미동작")
-        except Exception as e:
-            response.accepted = False
-            response.message = f"실행 중 오류: {e}"
-            self.get_logger().error(response.message)
-            return response
-
-        response.accepted = True
-        response.message = f"path1={len(path1)}, path2={len(path2)}, path3={len(path3)} 실행 완료"
-        self.get_logger().info(f"[OK] {response.message}")
-        return response
-
 def dist2d(a, b):
     """2D 두 점 사이 거리 계산."""
     dx = b[0] - a[0]
@@ -196,195 +141,13 @@ def remove_near_duplicate_points(points, min_dist=DUPLICATE_DIST_MM):
             cleaned.append(p)
 
     return cleaned
-def load_paths_from_txt(txt_path):
-    """
-    TXT를 읽어서 SRV와 같은 내부 구조로 변환한다.
 
-    반환 형태:
-        path1, path2, path3
-
-    각 path 형태:
-        [stroke1, stroke2, ...]
-
-    각 stroke 형태:
-        [[x, y], [x, y], ...]
-
-    지원 TXT 예시 1: GUI dump 형식
-        === path1 RED ===
-        stroke1 (점 92개, z=94.0, vel=40.0)
-          waypoint1  322.0, 13.5
-          waypoint2  328.63, 11.0
-
-        === path2 YELLOW ===
-        stroke1
-          waypoint1  366.0, -68.0
-
-    지원 TXT 예시 2: 단순 좌표 형식
-        322.0 13.5
-        328.63 11.0
-
-        366.0 -68.0
-        360.95 -74.55
-
-    단순 좌표 형식에서는 빈 줄을 stroke 구분자로 사용하고,
-    전체는 path1로 들어간다.
-    """
-    import re
-
-    if not os.path.exists(txt_path):
-        raise RuntimeError(f"TXT 파일 없음 : {txt_path}")
-
-    path1 = []
-    path2 = []
-    path3 = []
-
-    # path 헤더가 없는 단순 TXT도 바로 path1에 들어가도록 기본값을 path1로 둔다.
-    current_path = path1
-    current_path_idx = 1
-    current_stroke = []
-
-    def save_stroke():
-        """현재 모으고 있는 stroke를 현재 path에 저장한다."""
-        nonlocal current_stroke, current_path
-
-        if current_path is None:
-            current_stroke = []
-            return
-
-        if len(current_stroke) < MIN_STROKE_POINT_COUNT:
-            current_stroke = []
-            return
-
-        cleaned = remove_near_duplicate_points(current_stroke)
-
-        if len(cleaned) >= MIN_STROKE_POINT_COUNT:
-            current_path.append(cleaned)
-
-        current_stroke = []
-
-    def select_path_from_header(line):
-        """=== path1 RED === 같은 헤더를 보고 현재 path를 선택한다."""
-        lower = line.lower()
-
-        if "path1" in lower:
-            return path1, 1
-        if "path2" in lower:
-            return path2, 2
-        if "path3" in lower:
-            return path3, 3
-
-        return None, None
-
-    def parse_xy_from_line(line):
-        """
-        한 줄에서 x, y만 뽑는다.
-
-        지원:
-          waypoint1  322.0, 13.5
-          waypoint 322.0 13.5
-          waypoint1 : 322.0 13.5
-          322.0 13.5
-          322.0, 13.5, 94.0
-
-        z, vel 등 뒤에 값이 더 있어도 x,y만 사용한다.
-        """
-        text = line.strip()
-
-        # waypoint1 / waypoint 1 / waypoint1: 같은 접두어 제거
-        if text.lower().startswith("waypoint"):
-            text = re.sub(r"^waypoint\s*\d*\s*[:\-]?\s*", "", text, flags=re.IGNORECASE)
-
-        # 콤마를 공백처럼 취급
-        text = text.replace(",", " ")
-
-        # 숫자만 추출. 부호/소수/지수표기 지원.
-        nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", text)
-
-        if len(nums) < 2:
-            return None
-
-        try:
-            x = float(nums[0])
-            y = float(nums[1])
-            return [x, y]
-        except ValueError:
-            return None
-
-    with open(txt_path, "r", encoding="utf-8") as f:
-        for raw in f:
-            line = raw.strip()
-
-            # 빈 줄은 단순 TXT에서 stroke 구분자로 사용한다.
-            if line == "":
-                save_stroke()
-                continue
-
-            # 주석 무시
-            if line.startswith("#"):
-                continue
-
-            # PATH 헤더 처리
-            if line.startswith("==="):
-                save_stroke()
-
-                selected_path, selected_idx = select_path_from_header(line)
-
-                if selected_path is not None:
-                    current_path = selected_path
-                    current_path_idx = selected_idx
-                    print(f"[TXT] select PATH {current_path_idx}: {line}")
-                else:
-                    print(f"[TXT] unknown path header ignored: {line}")
-
-                continue
-
-            # stroke 시작 처리
-            # 예: stroke1, stroke2 (점 8개, z=94.0, vel=40.0)
-            if line.lower().startswith("stroke"):
-                save_stroke()
-                current_stroke = []
-                continue
-
-            # waypoint 또는 단순 좌표 처리
-            xy = parse_xy_from_line(line)
-
-            if xy is not None:
-                current_stroke.append(xy)
-
-    # 파일 마지막 stroke 저장
-    save_stroke()
-
-    paths = [path1, path2, path3]
-
-    print("\n================ TXT RESULT =================")
-    for path_idx, path in enumerate(paths, start=1):
-        total_points = sum(len(stroke) for stroke in path)
-        total_len = sum(path_length(stroke) for stroke in path)
-        print(f"PATH {path_idx}: strokes={len(path)}, points={total_points}, length={total_len:.2f} mm")
-
-        for stroke_idx, stroke in enumerate(path, start=1):
-            print(
-                f"  stroke {stroke_idx}: "
-                f"points={len(stroke)}, length={path_length(stroke):.2f} mm"
-            )
-    print("=============================================\n")
-
-    if len(path1) + len(path2) + len(path3) == 0:
-        raise RuntimeError("TXT에서 유효한 path/stroke 좌표를 찾지 못함")
-
-    return path1, path2, path3
 
 # ================================================================
-# [8] SRV / Custom Msg 변환용 준비 함수
+# [8] SRV / Custom Msg 변환
 # ================================================================
 def points_from_sand_stroke(stroke_msg):
-    """
-    SandStroke.msg를 [[x, y], ...]로 변환하는 함수.
-
-    나중에 SRV 연결할 때 사용:
-      points = points_from_sand_stroke(stroke)
-      execute_stroke(points, ...)
-    """
+    """SandStroke.msg -> [[x, y], ...]"""
     points = []
 
     for p in stroke_msg.points:
@@ -395,10 +158,7 @@ def points_from_sand_stroke(stroke_msg):
 
 
 def path_from_sand_strokes(stroke_msgs):
-    """
-    SandStroke[]를 Python stroke list로 변환.
-    반환 형태: [ [[x,y], [x,y]], [[x,y], [x,y]], ... ]
-    """
+    """SandStroke[] -> [ [[x,y],...], [[x,y],...], ... ]"""
     path = []
 
     for stroke_msg in stroke_msgs:
@@ -482,12 +242,7 @@ def centripetal_catmull_rom_spline(points):
         p3 = extended[i + 2]
 
         seg_points = centripetal_catmull_rom_segment(
-            p0,
-            p1,
-            p2,
-            p3,
-            SPLINE_STEPS_PER_SEG,
-        )
+            p0, p1, p2, p3, SPLINE_STEPS_PER_SEG)
 
         result.extend(seg_points)
 
@@ -546,11 +301,7 @@ def uniform_resample(points, step_mm=SAMPLE_DIST_MM):
 # [11] Lead In / Lead Out
 # ================================================================
 def calc_lead_point(p0, p1, distance):
-    """
-    p0 -> p1 방향으로 distance 만큼 이동한 점 생성.
-    distance < 0 : 시작점 앞쪽
-    distance > 0 : 끝점 뒤쪽
-    """
+    """p0 -> p1 방향으로 distance 만큼 이동한 점 생성."""
     dx = p1[0] - p0[0]
     dy = p1[1] - p0[1]
     length = math.sqrt(dx * dx + dy * dy)
@@ -604,12 +355,9 @@ def build_smooth_points_from_waypoints(waypoints):
 
 def build_motion_from_points(points):
     """
-    sampled point를 최종 motion으로 변환.
+    sampled point -> motion [x, y, z, rx, ry, rz].
 
-    motion 구조:
-        [x, y, z, rx, ry, rz]
-
-    Rz는 진행 방향을 따라가지 않고 BASE_RZ로 고정.
+    z는 일단 DRAW_Z로 채워두고, 실행 시점에 실측 접촉 z로 교체됨.
     """
     if len(points) < 2:
         return []
@@ -643,9 +391,15 @@ def motion_to_posx(m):
     return posx(m[0], m[1], m[2], m[3], m[4], m[5])
 
 
-def motion_to_pos_list(motion):
-    """motion 전체를 movesx에 넣을 posx 리스트로 변환."""
-    return [motion_to_posx(m) for m in motion]
+def motion_to_pos_list(motion, z_override=None):
+    """motion 전체를 movesx용 posx 리스트로 변환.
+
+    z_override가 주어지면 모든 waypoint의 z를 그 값으로 교체.
+    (force 접촉으로 실측한 z를 주행에 반영하기 위함)
+    """
+    if z_override is None:
+        return [motion_to_posx(m) for m in motion]
+    return [posx(m[0], m[1], z_override, m[3], m[4], m[5]) for m in motion]
 
 
 def split_pos_list_to_chunks(pos_list, chunk_size=MOVESX_CHUNK_SIZE):
@@ -689,10 +443,12 @@ def enable_force_control():
 
     wait(0.2)
 
-    print(f"[FORCE] set desired force: fd={DESIRED_FORCE_FD}, dir={DESIRED_FORCE_DIR}")
+    fd = [0, 0, -DRAW_FORCE, 0, 0, 0]
+
+    print(f"[FORCE] set desired force: fd={fd}, dir={DESIRED_FORCE_DIR}")
 
     try:
-        set_desired_force(fd=DESIRED_FORCE_FD, dir=DESIRED_FORCE_DIR)
+        set_desired_force(fd=fd, dir=DESIRED_FORCE_DIR)
     except TypeError:
         set_desired_force(DESIRED_FORCE_FD, DESIRED_FORCE_DIR)
 
@@ -721,7 +477,7 @@ def disable_force_control():
     wait(0.1)
 
 # ================================================================
-# [15] Robot Engine - movesx
+# [15] Robot Engine - movesx  (v3 크리티컬 패스 유지)
 # ================================================================
 STATUS_IDLE = 0
 
@@ -737,7 +493,7 @@ def wait_motion_near_finish():
         wait(0.01)
 
 
-def call_movesx_chunk(chunk, vel=VEL_DEFAULT, acc=ACC_DEFAULT):
+def call_movesx_chunk(chunk, vel=DRAW_SPEED, acc=DRAW_SPEED):
     """movesx 호출 래퍼."""
     movesx(
         chunk,
@@ -750,14 +506,14 @@ def call_movesx_chunk(chunk, vel=VEL_DEFAULT, acc=ACC_DEFAULT):
 
 def execute_motion_with_movesx(motion, label="stroke"):
     """
-    motion 하나를 실제 로봇으로 실행.
+    motion 하나를 실제 로봇으로 실행. (v3 로직 그대로)
 
     순서:
       1) 시작점 SAFE_Z 이동
       2) DRAW_Z + FORCE_APPROACH_OFFSET_Z 위치까지 접근
       3) Compliance / Force ON
-      4) DRAW_Z까지 천천히 하강
-      5) movesx chunk 실행
+      4) Force로 하강하며 접촉 감지 + 실측 접촉 z 저장
+      5) 실측 접촉 z 기준으로 movesx chunk 실행
       6) Force / Compliance OFF
       7) 끝점 SAFE_Z 상승
     """
@@ -778,16 +534,15 @@ def execute_motion_with_movesx(motion, label="stroke"):
         start_safe[2] = SAFE_Z
 
         print("[ROBOT] move to start safe z")
-        result = movel(
+        movel(
             motion_to_posx(start_safe),
             vel=VEL_DEFAULT,
             acc=ACC_DEFAULT,
             ref=DR_BASE,
             mod=DR_MV_MOD_ABS,
         )
-        print(f"[DEBUG] movel result = {result}")
-        wait(0.3)
-        
+        wait_motion_near_finish()
+
         # 2) DRAW_Z보다 살짝 위로 접근
         start_pre_force = start.copy()
         start_pre_force[2] = DRAW_Z + FORCE_APPROACH_OFFSET_Z
@@ -800,25 +555,50 @@ def execute_motion_with_movesx(motion, label="stroke"):
             ref=DR_BASE,
             mod=DR_MV_MOD_ABS,
         )
-        wait(0.2)
+        wait_motion_near_finish()
 
         # 3) Compliance / Force ON
         enable_force_control()
         force_enabled = True
 
-        # 4) Force 켠 상태에서 DRAW_Z까지 천천히 내려가기
-        print("[ROBOT] force approach draw z")
-        movel(
-            motion_to_posx(start),
-            vel=APPROACH_VEL,
-            acc=APPROACH_ACC,
-            ref=DR_BASE,
-            mod=DR_MV_MOD_ABS,
-        )
-        wait(0.2)
+        # 4) Force 켠 상태에서 접촉 감지 + 실측 z 저장
+        print("[FORCE] searching contact by force only...")
 
-        # 5) movesx 실행
-        pos_list = motion_to_pos_list(motion)
+        MAX_WAIT = 200.0
+        CHECK_DT = 0.05
+        elapsed = 0.0
+        contact_z = None  # 접촉 순간 실측 z를 담을 변수
+
+        while elapsed < MAX_WAIT:
+            if check_force_condition(DR_AXIS_Z, min=DRAW_FORCE, ref=DR_BASE) == 0:
+                print("[FORCE] Contact detected")
+
+                # 접촉을 확인만 하지 않고, 그 순간의 실제 z를 읽어서 저장
+                # get_current_posx는 (posx, sol) 튜플 반환 -> posx[2]가 z
+                cur_posx, _sol = get_current_posx(ref=DR_BASE)
+                if cur_posx is not None:
+                    contact_z = float(cur_posx[2])
+                    dev = contact_z - DRAW_Z
+                    print(f"[FORCE] contact z = {contact_z:.3f} "
+                          f"(DRAW_Z={DRAW_Z}, 편차 {dev:+.3f} mm)")
+                    if abs(dev) > CONTACT_Z_WARN_DEV:
+                        print(f"[WARN] 접촉 z 편차가 {CONTACT_Z_WARN_DEV}mm 초과. "
+                              f"센서 오감지 또는 표면 높이 확인 필요")
+                else:
+                    print("[WARN] get_current_posx 실패, DRAW_Z로 대체 진행")
+                break
+
+            wait(CHECK_DT)
+            elapsed += CHECK_DT
+        else:
+            print("[ERROR] Contact not found")
+            disable_force_control()
+            return
+
+        # 5) movesx 실행 - 실측 접촉 z로 전체 waypoint z 교체
+        draw_z_actual = contact_z if contact_z is not None else DRAW_Z
+        print(f"[ROBOT] drawing at z = {draw_z_actual:.3f}")
+        pos_list = motion_to_pos_list(motion, z_override=draw_z_actual)
         chunks = split_pos_list_to_chunks(pos_list)
 
         print(f"chunks = {len(chunks)}")
@@ -826,7 +606,7 @@ def execute_motion_with_movesx(motion, label="stroke"):
 
         for idx, chunk in enumerate(chunks):
             print(f"[MOVESX {idx + 1}/{len(chunks)}] points={len(chunk)}")
-            call_movesx_chunk(chunk, vel=VEL_DEFAULT, acc=ACC_DEFAULT)
+            call_movesx_chunk(chunk, vel=DRAW_SPEED, acc=DRAW_SPEED)
             wait_motion_near_finish()
 
         # 6) Force / Compliance OFF
@@ -858,13 +638,7 @@ def execute_motion_with_movesx(motion, label="stroke"):
 # [16] Stroke / Path / Response Execute
 # ================================================================
 def execute_stroke(stroke_points, path_idx=1, stroke_idx=1, stroke_total=1):
-    """
-    stroke 1개를 독립적으로 그림.
-
-    중요:
-      stroke가 끝나면 반드시 SAFE_Z로 올라감.
-      다음 stroke와 직선으로 이어 그리지 않음.
-    """
+    """stroke 1개를 독립적으로 그림. 끝나면 반드시 SAFE_Z로 상승."""
     if len(stroke_points) < MIN_STROKE_POINT_COUNT:
         print(f"[SKIP] PATH {path_idx} STROKE {stroke_idx}: points too short")
         return
@@ -887,12 +661,7 @@ def execute_stroke(stroke_points, path_idx=1, stroke_idx=1, stroke_total=1):
 
 
 def execute_path(path_strokes, path_idx=1):
-    """
-    path 1개 안의 stroke들을 순서대로 실행.
-
-    path_strokes 형태:
-      [ [[x,y], [x,y], ...], [[x,y], [x,y], ...], ... ]
-    """
+    """path 1개 안의 stroke들을 순서대로 실행."""
     if path_strokes is None or len(path_strokes) == 0:
         print(f"[SKIP] PATH {path_idx}: empty")
         return
@@ -918,112 +687,106 @@ def execute_path(path_strokes, path_idx=1):
 
 
 def execute_response_paths(path1, path2, path3):
-    """
-    SRV 응답 구조와 동일하게 path1/path2/path3를 순서대로 실행.
-
-    현재 TXT 테스트에서는 path1에 TXT stroke들을 넣고,
-    path2/path3는 빈 리스트로 호출하면 됨.
-    """
+    """path1 -> path2 -> path3 순서로 실행."""
     execute_path(path1, path_idx=1)
     execute_path(path2, path_idx=2)
     execute_path(path3, path_idx=3)
 
 # ================================================================
-# [17] Robot Main
+# [17] Service Node  # [SRV] 서비스 수신 노드
 # ================================================================
-def robot_test_main(args=None):
-    """
-    ROS2/DSR 환경에서 실행되는 main.
-    RUN_ROBOT=False면 TXT stroke 로딩과 motion 생성 확인만 수행.
-    RUN_ROBOT=True면 실제 movesx 실행.
-    """
-    global posx, movel, movesx, wait
-    global set_velx, set_accx, check_motion
-    global task_compliance_ctrl, set_desired_force
-    global release_force, release_compliance_ctrl
-    global DR_BASE, DR_MV_MOD_ABS
+class SandEngineNode(Node):
+    """path_plan_node가 보낸 PathPlanList 요청을 받아 로봇 실행."""
 
-    rclpy.init(args=args)
-    node = rclpy.create_node("sandart_movesx_node", namespace=ROBOT_ID)
-    DR_init.__dsr__node = node
+    def __init__(self):
+        super().__init__("sandart_movesx_node", namespace=ROBOT_ID)
+        self.srv = self.create_service(
+            PathPlanList, "path_plan_list", self.handle_path_plan_list)
+        self.get_logger().info("path_plan_list 서비스 대기 중...")
 
-    try:
-        from DSR_ROBOT2 import (
-            posx,
-            movel,
-            movesx,
-            wait,
-            check_motion,
-            set_velx,
-            set_accx,
-            task_compliance_ctrl,
-            set_desired_force,
-            release_force,
-            release_compliance_ctrl,
-            DR_BASE,
-            DR_MV_MOD_ABS,
-        )
-    except ImportError as e:
-        node.get_logger().error(f"DSR_ROBOT2 import 실패: {e}")
-        rclpy.shutdown()
-        return
+        self.bond_id = "sandart_movesx_node_to_lifecycle"
+        self.bond_instance_id = str(uuid.uuid4())
+        self.heartbeat_timeout = 6.0
+        self.heartbeat_period = 0.1
+        self.is_working = False
+        self.is_active = True
 
-    try:
-        set_velx(VEL_DEFAULT, VEL_DEFAULT)
-        set_accx(ACC_DEFAULT, ACC_DEFAULT)
+        self.bond_pub = self.create_publisher(Bond, "/bond", 10)
+        self.bond_timer = self.create_timer(0.1, self.publish_bond)
+    
+    def publish_bond(self):
+        msg = Bond()
+        msg.id = self.bond_id
+        msg.instance_id = self.bond_instance_id
+        msg.working = self.is_working
+        msg.active = self.is_active
+        msg.heartbeat_timeout = self.heartbeat_timeout
+        msg.heartbeat_period = self.heartbeat_period
+        self.bond_pub.publish(msg)
 
-        print("[INIT] Load strokes from TXT")
-        path1, path2, path3 = load_paths_from_txt(TXT_PATH)
+    def handle_path_plan_list(self, request, response):
+        self.is_working = True
+        self.publish_bond()  # WORKING 상태 즉시 발행
 
-        if not RUN_ROBOT:
-            print("\n[DRY RUN] RUN_ROBOT=False")
-            print("[DRY RUN] Robot will not move.")
+        try:
+            path1 = path_from_sand_strokes(request.path1)
+            path2 = path_from_sand_strokes(request.path2)
+            path3 = path_from_sand_strokes(request.path3)
+        except Exception as e:
+            response.accepted = False
+            response.message = f"경로 변환 실패: {e}"
+            self.get_logger().error(response.message)
+            return response
 
-            for path_idx, path in enumerate([path1, path2, path3], start=1):
-                print(f"\n[DRY RUN] PATH {path_idx}: strokes={len(path)}")
-                for stroke_idx, stroke in enumerate(path, start=1):
-                    motion = build_motion_from_stroke(stroke)
-                    print(
-                        f"  stroke {stroke_idx}: raw={len(stroke)}, "
-                        f"motion={len(motion)}, length={path_length(stroke):.2f} mm"
-                    )
-                    for i, m in enumerate(motion[:3]):
-                        print(
-                            f"    M{i}: x={m[0]:.3f}, y={m[1]:.3f}, z={m[2]:.1f}, "
-                            f"rx={m[3]:.2f}, ry={m[4]:.2f}, rz={m[5]:.2f}"
-                        )
-            return
+        total = len(path1) + len(path2) + len(path3)
+        if total == 0:
+            response.accepted = False
+            response.message = "받은 path가 비어 있습니다."
+            self.get_logger().warn(response.message)
+            return response
 
-        print("\n[READY] RUN_ROBOT=True")
-        print("[INFO] 2초 후 로봇 실행")
-        wait(2.0)
+        self.get_logger().info(
+            f"path 수신: path1={len(path1)}, path2={len(path2)}, "
+            f"path3={len(path3)} strokes")
 
-        # TXT 테스트는 path1에 전체 stroke를 넣고 실행
-        # 나중에 SRV 연결 시 response.path1/path2/path3를 변환해서 여기에 넣으면 됨
-        execute_response_paths(path1, path2, path3)
+        try:
+            if RUN_ROBOT:
+                execute_response_paths(path1, path2, path3)
+            else:
+                self.get_logger().info("[DRY RUN] RUN_ROBOT=False, 로봇 미동작")
+        except Exception as e:
+            response.accepted = False
+            response.message = f"실행 중 오류: {e}"
+            self.get_logger().error(response.message)
+            return response
 
-    except KeyboardInterrupt:
-        print("[STOP] KeyboardInterrupt")
-        disable_force_control()
-
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        disable_force_control()
-
-    finally:
-        rclpy.shutdown()
+        response.accepted = True
+        response.message = (f"path1={len(path1)}, path2={len(path2)}, "
+                            f"path3={len(path3)} 실행 완료")
+        self.get_logger().info(f"[OK] {response.message}")
+        
+        self.is_working = False
+        self.publish_bond() 
+        
+        return response
 
 
+# ================================================================
+# [19] Service Main  # [SRV] 기본 실행 진입점 (서비스 모드)
+# ================================================================
 def main(args=None):
     global posx, movel, movesx, wait
     global set_velx, set_accx, check_motion
     global task_compliance_ctrl, set_desired_force
     global release_force, release_compliance_ctrl
-    global DR_BASE, DR_MV_MOD_ABS
+    global check_force_condition, get_current_posx      # [SRV] v3 로직에 필요
+    global DR_BASE, DR_MV_MOD_ABS, DR_AXIS_Z            # [SRV] v3 로직에 필요
 
     rclpy.init(args=args)
 
-    # 서비스 처리용 노드와 DSR_ROBOT2 내부 spin용 노드를 분리
+    # [SRV] 서비스 처리용 노드와 DSR_ROBOT2 내부 spin용 노드를 분리
+    #       (서비스 콜백 안에서 DSR 함수가 내부 spin을 돌 때
+    #        같은 노드를 중첩 spin하면 데드락 나는 문제 회피)
     service_node = SandEngineNode()
     dsr_node = rclpy.create_node("sandart_dsr_internal", namespace=ROBOT_ID)
     DR_init.__dsr__node = dsr_node   # movel/movesx 내부 대기는 이 노드만 사용
@@ -1031,13 +794,23 @@ def main(args=None):
     try:
         from DSR_ROBOT2 import (
             posx, movel, movesx, wait, check_motion,
-            set_velx, set_accx, task_compliance_ctrl, set_desired_force,
-            release_force, release_compliance_ctrl, DR_BASE, DR_MV_MOD_ABS,
+            set_velx, set_accx,
+            task_compliance_ctrl, set_desired_force,
+            release_force, release_compliance_ctrl,
+            check_force_condition, get_current_posx,    # [SRV] v3 접촉 감지에 필수
+            DR_AXIS_Z,                                  # [SRV] v3 접촉 감지에 필수
+            DR_BASE, DR_MV_MOD_ABS,
         )
     except ImportError as e:
         service_node.get_logger().error(f"DSR_ROBOT2 import 실패: {e}")
         rclpy.shutdown()
         return
+
+    try:
+        set_velx(VEL_DEFAULT, VEL_DEFAULT)
+        set_accx(ACC_DEFAULT, ACC_DEFAULT)
+    except Exception as e:
+        service_node.get_logger().warn(f"set_velx/set_accx 실패(무시하고 진행): {e}")
 
     try:
         rclpy.spin(service_node)   # 서비스 콜백은 여기서만 처리

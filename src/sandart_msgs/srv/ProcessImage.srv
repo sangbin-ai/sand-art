@@ -1,4 +1,5 @@
-string image_path
+sensor_msgs/Image input_img
 ---
-bool accepted
-string message
+sensor_msgs/Image gray_img
+sensor_msgs/Image binary_img
+sensor_msgs/Image skeleton_img
