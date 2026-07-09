@@ -1,4 +1,4 @@
-### sand_art
+## sand_art
 
 ROS 2 기반의 Sand Art 로봇 프로젝트입니다.
 입력 이미지를 스켈레톤화하고, 외곽선/중간 디테일/내부 디테일 3단계 레이어로 분리한 뒤, 각 레이어를 로봇이 따라 그릴 수 있는 좌표 경로로 변환합니다.
@@ -24,6 +24,73 @@ ROS 2 기반의 Sand Art 로봇 프로젝트입니다.
 * ROS 2 service 기반 경로 전달
 * `/bond` heartbeat 기반 노드 상태 감시
 * 실제 로봇 실행 또는 dry-run 테스트 지원
+
+## 설치 방법
+
+ROS 2 워크스페이스를 생성합니다.
+
+```bash
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws/src
+```
+
+저장소를 clone합니다.
+
+```bash
+git clone https://github.com/sangbin-ai/sand-art.git
+```
+
+워크스페이스 루트로 이동합니다.
+
+```bash
+cd ~/ros2_ws
+```
+
+Python 의존성을 설치합니다.
+
+```bash
+pip install opencv-python numpy networkx scikit-image
+```
+
+ROS 2 패키지를 빌드합니다.
+
+```bash
+colcon build
+```
+
+환경을 적용합니다.
+
+```bash
+source install/setup.bash
+```
+
+## 실행 방법
+
+전체 launch 파일로 실행합니다.
+
+```bash
+ros2 launch sandart sandart.launch.py
+```
+
+개별 노드를 실행할 수도 있습니다.
+
+```bash
+ros2 run sandart skeleton_processor_node
+ros2 run sandart path_plan_node
+ros2 run sandart sandart_movesx_node
+ros2 run sandart lifecycle_manage_node
+```
+
+## 기본 실행 흐름
+
+1. `lifecycle_manage_node` 실행
+2. `sandart_movesx_node` 실행
+3. `path_plan_node` 실행
+4. `skeleton_processor_node`에서 이미지 처리 요청
+5. 3개 레이어 이미지 생성
+6. `path_plan_node`가 stroke 경로 생성
+7. `sandart_movesx_node`가 경로를 받아 로봇 동작 실행
+
 
 ## 패키지 구조
 
@@ -83,7 +150,6 @@ sand-art/
 * 픽셀 좌표를 로봇 기준 mm 좌표로 변환
 * `SandStroke[]` 형태의 path 생성
 * `/dsr01/path_plan_list` 서비스로 경로 전달
-* 디버깅용 `strokes_YYYYMMDD_HHMMSS.txt` 저장
 
 레이어 매핑:
 
@@ -116,7 +182,7 @@ sand-art/
 * timeout 발생 시 DEAD 경고 출력
 * 노드 재시작 감지
 
-## 메시지 및 서비스
+## 인터페이스
 
 ### Message
 
@@ -214,71 +280,6 @@ string message
 * `dsr_common2`
 * `sandart_msgs`
 
-## 설치 방법
-
-ROS 2 워크스페이스를 생성합니다.
-
-```bash
-mkdir -p ~/ros2_ws/src
-cd ~/ros2_ws/src
-```
-
-저장소를 clone합니다.
-
-```bash
-git clone https://github.com/sangbin-ai/sand-art.git
-```
-
-워크스페이스 루트로 이동합니다.
-
-```bash
-cd ~/ros2_ws
-```
-
-Python 의존성을 설치합니다.
-
-```bash
-pip install opencv-python numpy networkx scikit-image
-```
-
-ROS 2 패키지를 빌드합니다.
-
-```bash
-colcon build
-```
-
-환경을 적용합니다.
-
-```bash
-source install/setup.bash
-```
-
-## 실행 방법
-
-전체 launch 파일로 실행합니다.
-
-```bash
-ros2 launch sandart sandart.launch.py
-```
-
-개별 노드를 실행할 수도 있습니다.
-
-```bash
-ros2 run sandart skeleton_processor_node
-ros2 run sandart path_plan_node
-ros2 run sandart sandart_movesx_node
-ros2 run sandart lifecycle_manage_node
-```
-
-## 기본 실행 흐름
-
-1. `lifecycle_manage_node` 실행
-2. `sandart_movesx_node` 실행
-3. `path_plan_node` 실행
-4. `skeleton_processor_node`에서 이미지 처리 요청
-5. 3개 레이어 이미지 생성
-6. `path_plan_node`가 stroke 경로 생성
-7. `sandart_movesx_node`가 경로를 받아 로봇 동작 실행
 
 ## 좌표 변환 설정
 
@@ -297,7 +298,7 @@ CONFIG = {
 
 설정 의미:
 
-| 항목                | 설명                     |
+| 항목               | 설명                     |
 | ----------------- | ---------------------- |
 | `min_stroke_px`   | 너무 작은 노이즈 stroke 제거 기준 |
 | `resample_mm`     | waypoint 간격            |
@@ -369,17 +370,3 @@ Node(
 * dry-run 테스트 결과
 * 생성된 waypoint가 작업 영역 안에 있는지 여부
 
-## 향후 개선 사항
-
-* launch 파일 패키지명 정리
-* `package.xml` 설명 및 license 정보 업데이트
-* 파라미터를 launch argument로 분리
-* 이미지 입력 예제 추가
-* 샘플 이미지 및 결과 이미지 추가
-* 로봇 미연결 환경용 시뮬레이션 모드 강화
-* 테스트 코드 보강
-
-## License
-
-현재 license 정보가 명시되어 있지 않습니다.
-공개 저장소로 배포할 경우 MIT, Apache-2.0 등 적절한 라이선스를 선택해 추가하는 것을 권장합니다.
