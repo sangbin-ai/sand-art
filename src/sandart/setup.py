@@ -31,6 +31,7 @@ setup(
             'skeleton_processor_node = sandart.skeleton_processor_node:main',
             'lifecycle_manage_node = sandart.lifecycle_manage_node:main',
             'sandart_movesx_node = sandart.sandart_movesx_node:main',
+            'sand_clear_node = sandart.sand_clear_node:main',
         ],
     },
 )

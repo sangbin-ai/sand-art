@@ -4,6 +4,13 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
+
+    sand_clear = Node(
+        package="sandart",
+        executable="sand_clear_node",
+        name="sand_clear_node",
+        output="screen",
+    )
     path_plan = Node(
         package="sandart",
         executable="path_plan_node",
@@ -37,4 +44,5 @@ def generate_launch_description():
         skeleton_processor,
         path_plan,
         sandart_movesx,
+        sand_clear,
     ])

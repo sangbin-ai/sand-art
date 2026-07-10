@@ -17,6 +17,7 @@ import rclpy
 from rclpy.node import Node
 
 from sandart_msgs.msg import DrawingProgress
+from std_msgs.msg import Bool
 from PySide6.QtGui import QPixmap, QImage
 import subprocess
 
@@ -61,9 +62,28 @@ class DrawingProgressSubscriber(Node):
         self.callback(msg)
 
 
+class SandClearDoneSubscriber(Node):
+
+    def __init__(self, callback):
+        super().__init__("sand_clear_done_subscriber")
+
+        self.callback = callback
+
+        self.create_subscription(
+            Bool,
+            "/dsr01/sand_clear_done",
+            self.done_callback,
+            10,
+        )
+
+    def done_callback(self, msg):
+        self.callback(bool(msg.data))
+
+
 class MainWindow(QMainWindow):
 
     process_image_result = Signal(object)
+    sand_clear_done_result = Signal(bool)
     """
     메인 윈도우
 
@@ -153,6 +173,9 @@ class MainWindow(QMainWindow):
         self.process_image_result.connect(
             self.process_image_finished
         )
+        self.sand_clear_done_result.connect(
+            self.on_sand_clear_done
+        )
         self.selected_image_path = ""
         self.processing = False
         self.process_image_client.node.finished_callback = (
@@ -174,6 +197,7 @@ class MainWindow(QMainWindow):
 
         # STEP4까지 유지
         self.r2_process = None
+        self.sand_clear_process = None
 
         self.robot_setup_path = "~/ws_cobot_pjt/ws_dsr/install/setup.bash"
 
@@ -183,12 +207,18 @@ class MainWindow(QMainWindow):
             "mode:=real host:=192.168.1.100 model:=m0609"
         )
 
-        # Sandart
+        # Sandart Launch
         self.sandart_launch_cmd = (
             "ros2 launch sandart sandart.launch.py"
         )
 
-        # Drawing 시작: sandart_movesx_node가 받은 path를 실제 실행한다.
+        # Sand Reset
+        self.sand_clear_cmd = (
+            'ros2 service call '
+            '/dsr01/start_sand_clear '
+            'std_srvs/srv/Trigger "{}"'
+        )
+                # Drawing 시작: sandart_movesx_node가 받은 path를 실제 실행한다.
 
         # ==================================================
         # Stack 등록
@@ -272,6 +302,13 @@ class MainWindow(QMainWindow):
         # GUI 스레드의 rclpy.spin_once()를 제거하여 서비스 응답 누락을 방지합니다.
         self.process_image_client.add_node(
             self.progress_node
+        )
+
+        self.sand_clear_done_node = SandClearDoneSubscriber(
+            self.sand_clear_done_result.emit
+        )
+        self.process_image_client.add_node(
+            self.sand_clear_done_node
         )
 
         self.node_timer = QTimer(self)
@@ -649,6 +686,9 @@ class MainWindow(QMainWindow):
         # Drawing 종료
         self.stop_robot_drawing()
 
+        # Sand Reset 종료
+        self.stop_sand_clear()
+
         # Bringup 종료 (Ctrl+C 포함)
         self.stop_robot_bringup()
 
@@ -828,6 +868,11 @@ class MainWindow(QMainWindow):
 
         # Drawing
         elif name == "DRAW":
+            self.setting_dialog.add_draw_log(text)
+
+
+                # Sand Reset
+        elif name == "SAND RESET":
             self.setting_dialog.add_draw_log(text)
 
         # Lifecycle
@@ -1129,6 +1174,8 @@ class MainWindow(QMainWindow):
         self.stop_sandart_launch()
 
         self.stop_robot_drawing()
+
+        self.stop_sand_clear()
 
         if self.bringup_process is None:
             self.setting_dialog.add_log(
@@ -1443,6 +1490,271 @@ class MainWindow(QMainWindow):
             drawing=False,
         )
 
+    def start_sand_clear(self):
+        """StartPage의 샌드 초기화 버튼으로 sand_clear_node를 실행한다."""
+
+        # --------------------------------------------------
+        # 이미 샌드 초기화가 실행 중이면 중복 실행 방지
+        # --------------------------------------------------
+        if (
+            self.sand_clear_process is not None
+            and self.sand_clear_process.state() != QProcess.NotRunning
+        ):
+            self.setting_dialog.add_log(
+                "[SAND RESET] Already running"
+            )
+            return
+
+        # 이전 QProcess 객체가 종료된 상태로 남아 있으면 정리
+        if (
+            self.sand_clear_process is not None
+            and self.sand_clear_process.state() == QProcess.NotRunning
+        ):
+            self.sand_clear_process = None
+
+        # --------------------------------------------------
+        # UI 상태 변경
+        # --------------------------------------------------
+
+        # 실행 중 버튼 연타 방지
+        self.start_page.enable_reset_button(False)
+
+        # 이미지 선택도 함께 막고 싶으면 활성화
+        self.start_page.enable_image_button(False)
+
+        # StartPage 상단 STATUS 표시
+        self.start_page.set_status("RUNNING")
+
+        # SettingDialog 연결 상태 표시
+        self.setting_dialog.set_robot_connection_state(
+            "SAND RESET"
+        )
+
+        # 로봇 상태 표시
+        self.setting_dialog.set_robot_status(
+            connected=True,
+            servo=True,
+            force=False,
+            compliance=False,
+            drawing=False,
+        )
+
+        self.setting_dialog.add_log(
+            "[SAND RESET] sand_clear_node launch requested"
+        )
+
+        # --------------------------------------------------
+        # 샌드 초기화 QProcess 생성
+        # --------------------------------------------------
+        self.sand_clear_process = QProcess(self)
+
+        # stdout / stderr를 설정창 로그와 연결
+        self._connect_process_log(
+            self.sand_clear_process,
+            "SAND RESET",
+        )
+
+        # 프로세스 실제 시작 이벤트
+        self.sand_clear_process.started.connect(
+            self.on_sand_clear_started
+        )
+
+        # 프로세스 종료 이벤트
+        self.sand_clear_process.finished.connect(
+            self.on_sand_clear_finished
+        )
+
+        # 실행 자체에 실패한 경우
+        self.sand_clear_process.errorOccurred.connect(
+            self.on_sand_clear_error
+        )
+
+        # --------------------------------------------------
+        # 실제 명령 실행
+        # source install/setup.bash
+        # ros2 run sandart sand_clear_node
+        # --------------------------------------------------
+        self.sand_clear_process.start(
+            "bash",
+            [
+                "-lc",
+                self._make_bash_command(
+                    self.sand_clear_cmd
+                ),
+            ],
+        )
+
+    def on_sand_clear_started(self):
+        """sand_clear_node 프로세스가 실제로 시작된 경우."""
+
+        self.setting_dialog.add_log(
+            "[SAND RESET] sand_clear_node started"
+        )
+
+        self.start_page.set_status(
+            "RUNNING"
+        )
+    def on_sand_clear_error(self, error):
+        """sand_clear_node를 시작하지 못했거나 QProcess 오류가 발생한 경우."""
+
+        self.setting_dialog.add_log(
+            f"[SAND RESET] QProcess Error : {error}"
+        )
+
+        # 버튼 복구
+        self.start_page.enable_reset_button(True)
+        self.start_page.enable_image_button(True)
+
+        # 화면 오류 표시
+        self.start_page.set_status("ERROR")
+
+        self.setting_dialog.set_robot_connection_state(
+            "ERROR"
+        )
+
+        self.setting_dialog.set_robot_status(
+            force=False,
+            compliance=False,
+            drawing=False,
+        )
+
+        self.sand_clear_process = None
+    
+    def on_sand_clear_finished(
+        self,
+        exit_code,
+        exit_status,
+    ):
+        """서비스 호출 프로세스 종료 처리. 실제 완료는 done 토픽으로 판단합니다."""
+
+        self.setting_dialog.add_log(
+            f"[SAND RESET] Service call finished : "
+            f"code={exit_code}, status={exit_status}"
+        )
+
+        self.sand_clear_process = None
+
+        # 서비스 호출 자체가 실패한 경우에만 UI를 즉시 복구합니다.
+        if exit_code != 0:
+            self.start_page.enable_reset_button(True)
+            self.start_page.enable_image_button(True)
+            self.start_page.set_status("ERROR")
+
+            self.setting_dialog.set_robot_connection_state(
+                "ERROR"
+            )
+            self.setting_dialog.add_log(
+                "[SAND RESET] Service call failed"
+            )
+
+    def on_sand_clear_done(self, success):
+        """sand_clear_node가 실제 모션 완료 후 발행한 결과 처리."""
+
+        self.start_page.enable_reset_button(True)
+        self.start_page.enable_image_button(True)
+
+        if success:
+            self.start_page.set_status("READY")
+            self.setting_dialog.add_log(
+                "[SAND RESET] Sand reset completed"
+            )
+        else:
+            self.start_page.set_status("ERROR")
+            self.setting_dialog.add_log(
+                "[SAND RESET] Sand reset failed"
+            )
+
+        if (
+            self.bringup_process is not None
+            and self.bringup_process.state() != QProcess.NotRunning
+        ):
+            self.setting_dialog.set_robot_connection_state(
+                "CONNECTED"
+            )
+            self.setting_dialog.set_robot_status(
+                connected=True,
+                servo=True,
+                force=False,
+                compliance=False,
+                drawing=False,
+            )
+        else:
+            self.setting_dialog.set_robot_connection_state(
+                "OFF"
+            )
+            self.setting_dialog.set_robot_status(
+                connected=False,
+                servo=False,
+                force=False,
+                compliance=False,
+                drawing=False,
+            )
+
+    def stop_sand_clear(self):
+        """실행 중인 sand_clear_node 프로세스를 종료한다."""
+
+        if self.sand_clear_process is None:
+            return
+
+        if self.sand_clear_process.state() == QProcess.NotRunning:
+            self.sand_clear_process = None
+
+            self.start_page.enable_reset_button(True)
+            self.start_page.enable_image_button(True)
+            return
+
+        self.setting_dialog.add_log(
+            "[SAND RESET] Stop requested"
+        )
+
+        try:
+            pid = int(
+                self.sand_clear_process.processId()
+            )
+
+            if pid > 0:
+                try:
+                    # Ctrl+C와 같은 SIGINT 전달
+                    os.kill(
+                        pid,
+                        signal.SIGINT,
+                    )
+
+                    self.setting_dialog.add_log(
+                        f"[SAND RESET] SIGINT sent to pid={pid}"
+                    )
+
+                except ProcessLookupError:
+                    self.setting_dialog.add_log(
+                        "[SAND RESET] Process already stopped"
+                    )
+
+            # 정상 종료 대기
+            if not self.sand_clear_process.waitForFinished(3000):
+                self.setting_dialog.add_log(
+                    "[SAND RESET] SIGINT timeout -> terminate"
+                )
+
+                self.sand_clear_process.terminate()
+
+                if not self.sand_clear_process.waitForFinished(2000):
+                    self.setting_dialog.add_log(
+                        "[SAND RESET] terminate timeout -> kill"
+                    )
+
+                    self.sand_clear_process.kill()
+                    self.sand_clear_process.waitForFinished(1000)
+
+        except Exception as e:
+            self.setting_dialog.add_log(
+                f"[SAND RESET] Stop error : {e}"
+            )
+
+        self.sand_clear_process = None
+
+        self.start_page.enable_reset_button(True)
+        self.start_page.enable_image_button(True)
+        self.start_page.set_status("READY")
     # ======================================================
     # QSS 적용
     # ======================================================
@@ -1473,19 +1785,23 @@ class MainWindow(QMainWindow):
     # ======================================================
 
     def sand_reset(self):
-        """
-        Sand Reset
 
-        현재는 UI 단계입니다.
-
-        추후
-        reset_sand()
-        로봇 명령 연결 예정
-        """
-
-        print(
-            "Sand Reset"
+        reply = QMessageBox.question(
+            self,
+            "Sand Reset",
+            "모래를 초기화하시겠습니까?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        self.setting_dialog.add_log(
+            "[SAND RESET] Start"
+        )
+
+        self.start_sand_clear()
 
     # ======================================================
     # Page 이동 함수
@@ -1594,7 +1910,11 @@ class MainWindow(QMainWindow):
                 self.stop_robot_drawing()
         except Exception:
             pass
-
+        try:
+            if self.sand_clear_process is not None:
+                self.stop_sand_clear()
+        except Exception:
+            pass
         try:
             if self.bringup_process is not None or self.launch_process is not None:
                 self.stop_robot_bringup()
@@ -1616,6 +1936,13 @@ class MainWindow(QMainWindow):
             if hasattr(self, "process_image_client") and hasattr(self, "progress_node"):
                 self.process_image_client.remove_node(self.progress_node)
             self.progress_node.destroy_node()
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self, "process_image_client") and hasattr(self, "sand_clear_done_node"):
+                self.process_image_client.remove_node(self.sand_clear_done_node)
+            self.sand_clear_done_node.destroy_node()
         except Exception:
             pass
         
