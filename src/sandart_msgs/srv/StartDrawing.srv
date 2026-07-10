@@ -1,0 +1,8 @@
+float32 draw_speed
+float32 robot_speed
+float32 force
+float32 sampling
+string tool
+---
+bool success
+string message

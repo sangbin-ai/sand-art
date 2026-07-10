@@ -1,0 +1,193 @@
+=== path1 RED ===
+stroke1 (점 93개)
+  waypoint1  312.5, 16.0
+  waypoint2  309.0, 12.01
+  waypoint3  306.5, 5.03
+  waypoint4  304.5, -2.17
+  waypoint5  302.5, -9.36
+  waypoint6  299.75, -16.25
+  waypoint7  295.0, -20.42
+  waypoint8  296.44, -27.44
+  waypoint9  296.5, -34.61
+  waypoint10  295.5, -42.21
+  waypoint11  295.0, -50.03
+  waypoint12  295.0, -58.05
+  waypoint13  293.0, -65.25
+  waypoint14  292.0, -72.86
+  waypoint15  291.5, -80.67
+  waypoint16  291.99, -88.49
+  waypoint17  291.64, -96.36
+  waypoint18  284.94, -99.56
+  waypoint19  278.39, -103.11
+  waypoint20  272.13, -107.37
+  waypoint21  269.77, -113.77
+  waypoint22  276.46, -117.0
+  waypoint23  284.48, -117.0
+  waypoint24  292.5, -117.0
+  waypoint25  299.93, -115.57
+  waypoint26  307.31, -114.0
+  waypoint27  308.71, -114.21
+  waypoint28  310.85, -121.35
+  waypoint29  317.98, -123.5
+  waypoint30  325.71, -122.79
+  waypoint31  332.57, -120.0
+  waypoint32  338.73, -115.5
+  waypoint33  344.59, -115.59
+  waypoint34  351.62, -118.0
+  waypoint35  359.31, -118.19
+  waypoint36  367.25, -118.0
+  waypoint37  374.9, -117.1
+  waypoint38  382.06, -115.0
+  waypoint39  387.0, -109.58
+  waypoint40  389.5, -102.59
+  waypoint41  390.0, -94.78
+  waypoint42  390.5, -86.96
+  waypoint43  390.0, -79.14
+  waypoint44  389.0, -71.95
+  waypoint45  395.12, -68.0
+  waypoint46  401.7, -64.5
+  waypoint47  408.04, -60.46
+  waypoint48  414.01, -55.49
+  waypoint49  419.5, -49.74
+  waypoint50  423.59, -43.41
+  waypoint51  427.0, -36.8
+  waypoint52  429.28, -29.72
+  waypoint53  430.5, -22.21
+  waypoint54  430.0, -14.39
+  waypoint55  428.0, -7.2
+  waypoint56  423.12, -2.0
+  waypoint57  417.83, -7.17
+  waypoint58  413.92, -13.58
+  waypoint59  410.0, -19.97
+  waypoint60  406.0, -26.34
+  waypoint61  402.0, -32.71
+  waypoint62  397.95, -39.05
+  waypoint63  394.04, -45.46
+  waypoint64  389.78, -51.72
+  waypoint65  385.17, -57.83
+  waypoint66  378.67, -59.5
+  waypoint67  372.22, -55.72
+  waypoint68  365.52, -52.52
+  waypoint69  358.54, -50.0
+  waypoint70  352.27, -45.77
+  waypoint71  352.0, -38.68
+  waypoint72  357.5, -33.82
+  waypoint73  357.59, -26.59
+  waypoint74  354.0, -20.34
+  waypoint75  355.0, -12.74
+  waypoint76  355.5, -4.92
+  waypoint77  355.4, 1.5
+  waypoint78  355.08, 5.42
+  waypoint79  354.5, 11.8
+  waypoint80  353.81, 15.69
+  waypoint81  346.95, 13.5
+  waypoint82  340.85, 8.85
+  waypoint83  333.42, 9.58
+  waypoint84  326.19, 11.5
+  waypoint85  321.5, 16.88
+  waypoint86  319.45, 22.05
+  waypoint87  313.25, 22.25
+  waypoint88  312.37, 18.5
+  waypoint89  312.79, 17.71
+  waypoint90  313.85, 23.35
+  waypoint91  320.4, 21.1
+  waypoint92  321.45, 17.05
+  waypoint93  322.0, 13.5
+
+=== path2 YELLOW ===
+stroke1 (점 8개)
+  waypoint1  366.0, -68.0
+  waypoint2  360.95, -74.55
+  waypoint3  357.3, -81.7
+  waypoint4  355.5, -89.6
+  waypoint5  355.5, -98.25
+  waypoint6  354.23, -104.5
+  waypoint7  346.43, -106.57
+  waypoint8  343.5, -114.0
+
+stroke2 (점 8개)
+  waypoint9  353.5, 12.0
+  waypoint10  349.03, 10.03
+  waypoint11  344.8, 6.8
+  waypoint12  344.66, 1.84
+  waypoint13  347.54, -2.54
+  waypoint14  351.57, -2.43
+  waypoint15  353.05, 1.5
+  waypoint16  354.0, 6.0
+
+stroke3 (점 8개)
+  waypoint17  314.0, 19.0
+  waypoint18  314.06, 18.44
+  waypoint19  313.24, 16.0
+  waypoint20  312.6, 11.1
+  waypoint21  312.25, 5.75
+  waypoint22  316.31, 4.81
+  waypoint23  320.79, 7.79
+  waypoint24  322.0, 13.0
+
+stroke4 (점 8개)
+  waypoint25  324.0, -23.0
+  waypoint26  323.0, -19.16
+  waypoint27  322.48, -15.52
+  waypoint28  325.6, -13.5
+  waypoint29  329.16, -14.16
+  waypoint30  332.11, -16.61
+  waypoint31  331.3, -20.2
+  waypoint32  328.0, -22.5
+
+=== path3 BLUE ===
+stroke1 (점 12개)
+  waypoint1  335.5, -25.5
+  waypoint2  329.43, -25.0
+  waypoint3  329.54, -30.96
+  waypoint4  325.54, -37.0
+  waypoint5  320.17, -32.17
+  waypoint6  323.34, -25.66
+  waypoint7  327.71, -24.21
+  waypoint8  324.08, -23.58
+  waypoint9  318.3, -20.3
+  waypoint10  323.5, -24.97
+  waypoint11  324.34, -25.34
+  waypoint12  324.5, -33.0
+
+stroke2 (점 9개)
+  waypoint13  310.0, -110.0
+  waypoint14  314.3, -111.5
+  waypoint15  319.5, -106.32
+  waypoint16  318.5, -98.11
+  waypoint17  319.5, -89.9
+  waypoint18  318.5, -95.9
+  waypoint19  319.5, -104.11
+  waypoint20  316.06, -110.44
+  waypoint21  308.5, -113.0
+
+stroke3 (점 8개)
+  waypoint22  317.5, -10.0
+  waypoint23  316.98, -7.98
+  waypoint24  314.94, -7.5
+  waypoint25  313.08, -8.42
+  waypoint26  312.5, -10.41
+  waypoint27  314.23, -11.5
+  waypoint28  316.47, -11.5
+  waypoint29  317.5, -10.0
+
+stroke4 (점 8개)
+  waypoint30  340.0, -17.0
+  waypoint31  338.76, -15.76
+  waypoint32  339.0, -14.02
+  waypoint33  340.62, -13.0
+  waypoint34  342.33, -13.83
+  waypoint35  343.0, -15.6
+  waypoint36  342.05, -17.0
+  waypoint37  340.0, -17.0
+
+stroke5 (점 8개)
+  waypoint38  315.0, 18.0
+  waypoint39  315.71, 18.21
+  waypoint40  316.4, 18.5
+  waypoint41  317.14, 18.36
+  waypoint42  317.8, 18.0
+  waypoint43  318.57, 18.07
+  waypoint44  319.0, 18.3
+  waypoint45  318.5, 18.0
+

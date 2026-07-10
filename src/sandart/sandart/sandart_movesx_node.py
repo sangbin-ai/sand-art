@@ -31,13 +31,16 @@ import math
 import os
 import rclpy
 import DR_init
-
-from rclpy.node import Node                     # [SRV] 서비스 노드용
+from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor                     # [SRV] 서비스 노드용
 
 import uuid
 from sandart_msgs.msg import Bond
+from sandart_msgs.msg import DrawingProgress
 from sandart_msgs.srv import PathPlanList       # [SRV] path 수신 서비스 타입
-
+from sandart_msgs.srv import StartDrawing
+from std_srvs.srv import Trigger
 # ================================================================
 # [1] Robot Config
 # ================================================================
@@ -79,7 +82,7 @@ APPROACH_VEL = 20
 APPROACH_ACC = 20
 
 SAMPLE_DIST_MM = 1.0
-MOVESX_CHUNK_SIZE = 80
+MOVESX_CHUNK_SIZE = 20
 
 MIN_WAYPOINT_COUNT = 4
 MIN_STROKE_POINT_COUNT = 2
@@ -90,6 +93,43 @@ SPLINE_STEPS_PER_SEG = 20
 
 USE_LEAD_IN_OUT = True
 LEAD_DIST = 3.0
+
+# ================================================================
+# [4-1] Pen Change Config
+# ================================================================
+
+PEN_CHANGE_VEL = 40
+PEN_CHANGE_ACC = 40
+PEN_GRIP_WAIT = 0.5
+
+# 그리퍼 Digital Output 번호
+# 실제 현재 사용하는 그리퍼 출력 번호와 다르면 이 값만 변경
+GRIP_CLOSE_DO = 1
+GRIP_OPEN_DO = 2
+
+# 각 펜꽂이 좌표
+#
+# approach:
+#   펜꽂이 바로 위의 안전 위치
+#
+# grip:
+#   실제로 펜을 잡거나 내려놓는 위치
+#
+# [x, y, z, rx, ry, rz]
+PEN_HOLDER_POSES = {
+    1: {
+        "approach":  [652.17,-85.69 , 237.77, 99.17, -175.71, 139.46],
+        "grip":     [652.17,-85.69 , 37.77, 99.17, -175.71, 139.46],
+    },
+    2: {
+        "approach": [629.45 , 37.80 , 233.21 , 177.92 , 179.16 , 177.34],
+        "grip":     [629.45 , 37.80 , 33.21 , 177.92 , 179.16 , 177.34],
+    },
+    3: {
+        "approach": [668.65, 40.47 , 236.56 , 41.09 , -175.07 , 112.54],
+        "grip":     [668.65, 40.47 , 36.56 , 41.09 , -175.07 , 112.54],
+    },
+}
 
 # ================================================================
 # [5] Force / Compliance Config  (v3 값 유지)
@@ -477,22 +517,128 @@ def disable_force_control():
     wait(0.1)
 
 # ================================================================
+# [14-1] Pen Change
+# ================================================================
+def gripper_close():
+    """펜을 잡는다."""
+    set_digital_output(GRIP_OPEN_DO, 0)
+    wait(0.1)
+
+    set_digital_output(GRIP_CLOSE_DO, 1)
+    wait(PEN_GRIP_WAIT)
+
+
+def gripper_open():
+    """펜을 놓는다."""
+    set_digital_output(GRIP_CLOSE_DO, 0)
+    wait(0.1)
+
+    set_digital_output(GRIP_OPEN_DO, 1)
+    wait(PEN_GRIP_WAIT)
+
+
+def move_pen_pose(pose):
+    """펜 교체 위치로 직선 이동한다."""
+    movel(
+        posx(*pose),
+        vel=PEN_CHANGE_VEL,
+        acc=PEN_CHANGE_ACC,
+        ref=DR_BASE,
+        mod=DR_MV_MOD_ABS,
+    )
+
+
+def pick_pen(path_idx, node=None):
+    """
+    path_idx에 해당하는 펜꽂이에서 펜을 집는다.
+
+    순서:
+      1. 펜꽂이 위 approach 위치
+      2. 그리퍼 열기
+      3. 펜 위치까지 하강
+      4. 그리퍼 닫기
+      5. approach 위치로 상승
+    """
+    holder = PEN_HOLDER_POSES[path_idx]
+
+    print(f"[PEN] PATH {path_idx} 펜 집기 시작")
+
+    move_pen_pose(holder["approach"])
+    wait_motion_near_finish(node) 
+    wait(1.0)
+
+    gripper_open()
+
+    move_pen_pose(holder["grip"])
+    wait_motion_near_finish(node)
+    
+    gripper_close()
+
+    move_pen_pose(holder["approach"])
+    wait_motion_near_finish(node)
+
+    print(f"[PEN] PATH {path_idx} 펜 집기 완료")
+
+
+def return_pen(path_idx, node=None):
+    """
+    사용한 펜을 원래 펜꽂이에 돌려놓는다.
+
+    순서:
+      1. 펜꽂이 위 approach 위치
+      2. 펜 위치까지 하강
+      3. 그리퍼 열기
+      4. approach 위치로 상승
+    """
+    holder = PEN_HOLDER_POSES[path_idx]
+
+    print(f"[PEN] PATH {path_idx} 펜 반환 시작")
+
+    move_pen_pose(holder["approach"])
+    wait_motion_near_finish(node)
+    wait(1.0)
+
+    move_pen_pose(holder["grip"])
+    wait_motion_near_finish(node)
+
+    gripper_open()
+
+    move_pen_pose(holder["approach"])
+    wait_motion_near_finish(node)
+
+    print(f"[PEN] PATH {path_idx} 펜 반환 완료")
+
+# ================================================================
 # [15] Robot Engine - movesx  (v3 크리티컬 패스 유지)
 # ================================================================
 STATUS_IDLE = 0
 
+def wait_motion_near_finish(node=None):
+    """현재 motion을 확인하며 Pause 상태에서는 다음 진행을 대기한다."""
 
-def wait_motion_near_finish():
-    """현재 motion이 끝날 때까지 대기."""
+    pause_logged = False
+
     while True:
+
+        if node is not None and node.pause_requested:
+
+            if not pause_logged:
+                print("[PAUSE] Waiting before next motion...")
+                pause_logged = True
+
+            wait(0.05)
+            continue
+
+        if pause_logged:
+            print("[RESUME] Motion sequence resumed")
+            pause_logged = False
+
         status = check_motion()
 
         if status == STATUS_IDLE:
             break
 
         wait(0.01)
-
-
 def call_movesx_chunk(chunk, vel=DRAW_SPEED, acc=DRAW_SPEED):
     """movesx 호출 래퍼."""
     movesx(
@@ -504,7 +650,13 @@ def call_movesx_chunk(chunk, vel=DRAW_SPEED, acc=DRAW_SPEED):
     )
 
 
-def execute_motion_with_movesx(motion, label="stroke"):
+def execute_motion_with_movesx(
+    motion,
+    label="stroke",
+    progress_state=None,
+    progress_callback=None,
+    node=None,
+):
     """
     motion 하나를 실제 로봇으로 실행. (v3 로직 그대로)
 
@@ -541,7 +693,7 @@ def execute_motion_with_movesx(motion, label="stroke"):
             ref=DR_BASE,
             mod=DR_MV_MOD_ABS,
         )
-        wait_motion_near_finish()
+        wait_motion_near_finish(node)
 
         # 2) DRAW_Z보다 살짝 위로 접근
         start_pre_force = start.copy()
@@ -555,11 +707,22 @@ def execute_motion_with_movesx(motion, label="stroke"):
             ref=DR_BASE,
             mod=DR_MV_MOD_ABS,
         )
-        wait_motion_near_finish()
+        wait_motion_near_finish(node)
 
         # 3) Compliance / Force ON
         enable_force_control()
         force_enabled = True
+
+        # Force ON 상태에서 DRAW_Z까지 천천히 내려간다.
+        print("[ROBOT] force approach draw z")
+
+        movel(
+            motion_to_posx(start),
+            vel=APPROACH_VEL,
+            acc=APPROACH_ACC,
+            ref=DR_BASE,
+            mod=DR_MV_MOD_ABS,
+        )
 
         # 4) Force 켠 상태에서 접촉 감지 + 실측 z 저장
         print("[FORCE] searching contact by force only...")
@@ -605,9 +768,43 @@ def execute_motion_with_movesx(motion, label="stroke"):
         print(f"chunk size = {MOVESX_CHUNK_SIZE}")
 
         for idx, chunk in enumerate(chunks):
-            print(f"[MOVESX {idx + 1}/{len(chunks)}] points={len(chunk)}")
-            call_movesx_chunk(chunk, vel=DRAW_SPEED, acc=DRAW_SPEED)
-            wait_motion_near_finish()
+
+            # STOP 요청
+            if node is not None and node.stop_requested:
+                print("[STOP] Drawing stopped")
+                return
+
+            # PAUSE 요청
+            while node is not None and node.pause_requested:
+                wait(0.05)
+
+            call_movesx_chunk(
+                chunk,
+                vel=DRAW_SPEED,
+                acc=DRAW_SPEED,
+            )
+
+            wait_motion_near_finish(node)
+
+            if progress_state is not None:
+                progress_state["current"] += len(chunk)
+
+                total_points = max(1, progress_state["total"])
+                percent = int(
+                    progress_state["current"] * 100 / total_points
+                )
+                percent = max(0, min(99, percent))
+
+                if percent > progress_state["last_percent"]:
+                    progress_state["last_percent"] = percent
+
+                    if progress_callback is not None:
+                        progress_callback(
+                            percent,
+                            progress_state["current"],
+                            total_points,
+                            label,
+                        )
 
         # 6) Force / Compliance OFF
         disable_force_control()
@@ -637,7 +834,15 @@ def execute_motion_with_movesx(motion, label="stroke"):
 # ================================================================
 # [16] Stroke / Path / Response Execute
 # ================================================================
-def execute_stroke(stroke_points, path_idx=1, stroke_idx=1, stroke_total=1):
+def execute_stroke(
+    stroke_points,
+    path_idx=1,
+    stroke_idx=1,
+    stroke_total=1,
+    progress_state=None,
+    progress_callback=None,
+    node=None,
+):
     """stroke 1개를 독립적으로 그림. 끝나면 반드시 SAFE_Z로 상승."""
     if len(stroke_points) < MIN_STROKE_POINT_COUNT:
         print(f"[SKIP] PATH {path_idx} STROKE {stroke_idx}: points too short")
@@ -657,10 +862,22 @@ def execute_stroke(stroke_points, path_idx=1, stroke_idx=1, stroke_total=1):
         return
 
     print(f"motion points = {len(motion)}")
-    execute_motion_with_movesx(motion, label=label)
 
+    execute_motion_with_movesx(
+        motion,
+        label=label,
+        progress_state=progress_state,
+        progress_callback=progress_callback,
+        node=node,
+    )
 
-def execute_path(path_strokes, path_idx=1):
+def execute_path(
+    path_strokes,
+    path_idx=1,
+    progress_state=None,
+    progress_callback=None,
+    node=None,
+):
     """path 1개 안의 stroke들을 순서대로 실행."""
     if path_strokes is None or len(path_strokes) == 0:
         print(f"[SKIP] PATH {path_idx}: empty")
@@ -679,19 +896,107 @@ def execute_path(path_strokes, path_idx=1):
             path_idx=path_idx,
             stroke_idx=i + 1,
             stroke_total=total,
+            progress_state=progress_state,
+            progress_callback=progress_callback,
+            node=node,
         )
 
     print("\n================================================")
     print(f"PATH {path_idx} DONE")
     print("================================================\n")
+def count_total_motion_points(path1, path2, path3):
+    total = 0
 
+    for path in [path1, path2, path3]:
+        if path is None:
+            continue
 
-def execute_response_paths(path1, path2, path3):
+        for stroke_points in path:
+            motion = build_motion_from_stroke(stroke_points)
+            total += len(motion)
+
+    return total
+def execute_response_paths(
+    path1,
+    path2,
+    path3,
+    progress_callback=None,
+    node=None,
+):
     """path1 -> path2 -> path3 순서로 실행."""
-    execute_path(path1, path_idx=1)
-    execute_path(path2, path_idx=2)
-    execute_path(path3, path_idx=3)
 
+    total_points = count_total_motion_points(path1, path2, path3)
+
+    progress_state = {
+        "current": 0,
+        "total": max(1, total_points),
+        "last_percent": -1,
+    }
+
+    if progress_callback is not None:
+        progress_callback(
+            0,
+            0,
+            progress_state["total"],
+            "START",
+        )
+
+    # ============================================================
+    # PATH 1
+    # ============================================================
+    if path1:
+        pick_pen(1, node=node)
+
+        execute_path(
+            path1,
+            path_idx=1,
+            progress_state=progress_state,
+            progress_callback=progress_callback,
+            node=node,
+        )
+
+        return_pen(1, node=node)
+
+    # ============================================================
+    # PATH 2
+    # ============================================================
+    if path2:
+        pick_pen(2, node=node)
+
+        execute_path(
+            path2,
+            path_idx=2,
+            progress_state=progress_state,
+            progress_callback=progress_callback,
+            node=node,
+        )
+
+        return_pen(2, node=node)
+
+    # ============================================================
+    # PATH 3
+    # ============================================================
+    if path3:
+        pick_pen(3, node=node)
+
+        execute_path(
+            path3,
+            path_idx=3,
+            progress_state=progress_state,
+            progress_callback=progress_callback,
+            node=node,
+        )
+
+        # 마지막 펜도 원래 펜꽂이에 반환
+        return_pen(3, node=node)
+
+    if progress_callback is not None:
+        progress_callback(
+            100,
+            progress_state["total"],
+            progress_state["total"],
+            "DONE",
+        )
 # ================================================================
 # [17] Service Node  # [SRV] 서비스 수신 노드
 # ================================================================
@@ -700,9 +1005,51 @@ class SandEngineNode(Node):
 
     def __init__(self):
         super().__init__("sandart_movesx_node", namespace=ROBOT_ID)
+
+        # Drawing 콜백과 Pause/Resume 콜백을 서로 다른 그룹으로 분리합니다.
+        # start_drawing이 로봇 동작을 수행하는 동안에도 제어 서비스를 받을 수 있습니다.
+        self.drawing_callback_group = MutuallyExclusiveCallbackGroup()
+        self.control_callback_group = MutuallyExclusiveCallbackGroup()
+
+        self.stop_requested = False
+        self.pause_requested = False
         self.srv = self.create_service(
-            PathPlanList, "path_plan_list", self.handle_path_plan_list)
+            PathPlanList,
+            "path_plan_list",
+            self.handle_path_plan_list,
+            callback_group=self.drawing_callback_group,
+        )
         self.get_logger().info("path_plan_list 서비스 대기 중...")
+
+        self.start_srv = self.create_service(
+            StartDrawing,
+            "start_drawing",
+            self.handle_start_drawing,
+            callback_group=self.drawing_callback_group,
+        )
+        self.pause_srv = self.create_service(
+            Trigger,
+            "pause_drawing",
+            self.handle_pause,
+            callback_group=self.control_callback_group,
+        )
+
+        self.resume_srv = self.create_service(
+            Trigger,
+            "resume_drawing",
+            self.handle_resume,
+            callback_group=self.control_callback_group,
+        )
+        self.get_logger().info("start_drawing 서비스 대기 중...")
+
+        self.saved_path1 = []
+        self.saved_path2 = []
+        self.saved_path3 = []
+
+        # HMI Parameter 기본값
+        # 실제 speed / force / tool 값은 handle_start_drawing()에서
+        # StartDrawing.srv 요청을 받을 때 갱신한다.
+        self.draw_tool = "MEDIUM"
 
         self.bond_id = "sandart_movesx_node_to_lifecycle"
         self.bond_instance_id = str(uuid.uuid4())
@@ -712,8 +1059,62 @@ class SandEngineNode(Node):
         self.is_active = True
 
         self.bond_pub = self.create_publisher(Bond, "/bond", 10)
+        self.progress_pub = self.create_publisher(
+            DrawingProgress,
+            "/drawing_progress",
+            10,
+        )
         self.bond_timer = self.create_timer(0.1, self.publish_bond)
-    
+    def handle_pause(self, request, response):
+        """현재 chunk가 끝난 뒤 다음 chunk 실행을 대기시킨다."""
+
+        if not self.is_working:
+            response.success = False
+            response.message = "Drawing is not running"
+            self.get_logger().warn("[DRAW] Pause rejected: drawing is not running")
+            return response
+
+        if self.pause_requested:
+            response.success = True
+            response.message = "Already paused"
+            self.get_logger().info("[DRAW] Already paused")
+            return response
+
+        self.pause_requested = True
+
+        self.get_logger().info(
+            "[DRAW] Pause requested - waiting after current chunk"
+        )
+
+        response.success = True
+        response.message = "Pause requested"
+
+        return response
+
+
+    def handle_resume(self, request, response):
+        """Pause 대기를 해제하고 다음 chunk부터 계속 실행한다."""
+
+        if not self.is_working:
+            response.success = False
+            response.message = "Drawing is not running"
+            self.get_logger().warn("[DRAW] Resume rejected: drawing is not running")
+            return response
+
+        if not self.pause_requested:
+            response.success = True
+            response.message = "Already running"
+            self.get_logger().info("[DRAW] Already running")
+            return response
+
+        self.pause_requested = False
+
+        self.get_logger().info("[DRAW] Resume requested")
+
+        response.success = True
+        response.message = "Resumed"
+
+        return response
     def publish_bond(self):
         msg = Bond()
         msg.id = self.bond_id
@@ -723,64 +1124,168 @@ class SandEngineNode(Node):
         msg.heartbeat_timeout = self.heartbeat_timeout
         msg.heartbeat_period = self.heartbeat_period
         self.bond_pub.publish(msg)
+    
+    def publish_progress(
+        self,
+        percent,
+        current,
+        total,
+        status="DRAWING",
+    ):
+        msg = DrawingProgress()
+
+        msg.percent = int(max(0, min(100, percent)))
+        msg.current_point = int(current)
+        msg.total_point = int(total)
+        msg.status = str(status)
+
+        self.progress_pub.publish(msg)
 
     def handle_path_plan_list(self, request, response):
         self.is_working = True
-        self.publish_bond()  # WORKING 상태 즉시 발행
+        self.publish_bond()
 
         try:
             path1 = path_from_sand_strokes(request.path1)
             path2 = path_from_sand_strokes(request.path2)
             path3 = path_from_sand_strokes(request.path3)
         except Exception as e:
+            self.is_working = False
+            self.publish_bond()
             response.accepted = False
             response.message = f"경로 변환 실패: {e}"
             self.get_logger().error(response.message)
             return response
 
         total = len(path1) + len(path2) + len(path3)
+
         if total == 0:
+            self.is_working = False
+            self.publish_bond()
             response.accepted = False
             response.message = "받은 path가 비어 있습니다."
             self.get_logger().warn(response.message)
             return response
 
+        self.saved_path1 = path1
+        self.saved_path2 = path2
+        self.saved_path3 = path3
+
+        self.is_working = False
+        self.publish_bond()
+
+        response.accepted = True
+        response.message = (
+            f"Path Ready: path1={len(path1)}, "
+            f"path2={len(path2)}, path3={len(path3)}"
+        )
+
         self.get_logger().info(
-            f"path 수신: path1={len(path1)}, path2={len(path2)}, "
-            f"path3={len(path3)} strokes")
+            f"[READY] {response.message}. Waiting start_drawing..."
+        )
+
+        return response
+    
+    def handle_start_drawing(self, request, response):
+        total = (
+            len(self.saved_path1)
+            + len(self.saved_path2)
+            + len(self.saved_path3)
+        )
+
+        if total == 0:
+            response.success = False
+            response.message = "No path loaded. Process image first."
+            self.get_logger().warn(response.message)
+            return response
+
+        if self.is_working:
+            response.success = False
+            response.message = "Drawing already running."
+            self.get_logger().warn(response.message)
+            return response
+
+        self.is_working = True
+        self.publish_bond()
+        # HMI Parameter 저장
+        global DRAW_SPEED
+        global DRAW_FORCE
+        global VEL_DEFAULT
+        global ACC_DEFAULT
+        global SAMPLE_DIST_MM
+
+        DRAW_SPEED = float(request.draw_speed)
+
+        VEL_DEFAULT = float(request.robot_speed)
+        ACC_DEFAULT = float(request.robot_speed)
+
+        # DSR 내부 기본 속도/가속도도 같이 갱신
+        set_velx(VEL_DEFAULT, VEL_DEFAULT)
+        set_accx(ACC_DEFAULT, ACC_DEFAULT)
+
+        DRAW_FORCE = float(request.force)
+
+        SAMPLE_DIST_MM = float(request.sampling)
+
+        self.draw_tool = request.tool
+        self.get_logger().info(
+            f"[PARAM] draw_speed={DRAW_SPEED}, "
+            f"robot_speed={VEL_DEFAULT}, "
+            f"force={DRAW_FORCE}, "
+            f"sampling={SAMPLE_DIST_MM}, "
+            f"tool={self.draw_tool}"
+        )
+        self.get_logger().info("[DRAW] start_drawing accepted")
+        self.publish_progress(
+            0,
+            0,
+            total,
+            "START",
+        )
+        # 새 Drawing 시작 시 Pause 상태를 반드시 초기화합니다.
+        self.stop_requested = False
+        self.pause_requested = False
 
         try:
             if RUN_ROBOT:
-                execute_response_paths(path1, path2, path3)
+                execute_response_paths(
+                    self.saved_path1,
+                    self.saved_path2,
+                    self.saved_path3,
+                    progress_callback=self.publish_progress,
+                    node=self,
+                )
             else:
-                self.get_logger().info("[DRY RUN] RUN_ROBOT=False, 로봇 미동작")
+                self.get_logger().info(
+                    "[DRY RUN] RUN_ROBOT=False, 로봇 미동작"
+                )
+
+            response.success = True
+            response.message = "Drawing Finished"
+
         except Exception as e:
-            response.accepted = False
-            response.message = f"실행 중 오류: {e}"
+            response.success = False
+            response.message = f"Drawing failed: {e}"
             self.get_logger().error(response.message)
-            return response
 
-        response.accepted = True
-        response.message = (f"path1={len(path1)}, path2={len(path2)}, "
-                            f"path3={len(path3)} 실행 완료")
-        self.get_logger().info(f"[OK] {response.message}")
-        
-        self.is_working = False
-        self.publish_bond() 
-        
+        finally:
+            self.pause_requested = False
+            self.is_working = False
+            self.publish_bond()
+
         return response
-
-
 # ================================================================
 # [19] Service Main  # [SRV] 기본 실행 진입점 (서비스 모드)
 # ================================================================
 def main(args=None):
     global posx, movel, movesx, wait
     global set_velx, set_accx, check_motion
+    global set_digital_output
     global task_compliance_ctrl, set_desired_force
     global release_force, release_compliance_ctrl
     global check_force_condition, get_current_posx      # [SRV] v3 로직에 필요
     global DR_BASE, DR_MV_MOD_ABS, DR_AXIS_Z            # [SRV] v3 로직에 필요
+
 
     rclpy.init(args=args)
 
@@ -795,10 +1300,11 @@ def main(args=None):
         from DSR_ROBOT2 import (
             posx, movel, movesx, wait, check_motion,
             set_velx, set_accx,
+            set_digital_output,
             task_compliance_ctrl, set_desired_force,
             release_force, release_compliance_ctrl,
-            check_force_condition, get_current_posx,    # [SRV] v3 접촉 감지에 필수
-            DR_AXIS_Z,                                  # [SRV] v3 접촉 감지에 필수
+            check_force_condition, get_current_posx,
+            DR_AXIS_Z,
             DR_BASE, DR_MV_MOD_ABS,
         )
     except ImportError as e:
@@ -812,11 +1318,18 @@ def main(args=None):
     except Exception as e:
         service_node.get_logger().warn(f"set_velx/set_accx 실패(무시하고 진행): {e}")
 
+    # 명시적인 MultiThreadedExecutor를 사용합니다.
+    # start_drawing 콜백이 실행 중이어도 별도 callback group의
+    # pause_drawing / resume_drawing 콜백을 동시에 처리할 수 있습니다.
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(service_node)
+
     try:
-        rclpy.spin(service_node)   # 서비스 콜백은 여기서만 처리
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        executor.shutdown()
         service_node.destroy_node()
         dsr_node.destroy_node()
         rclpy.shutdown()

@@ -13,9 +13,13 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SandPoint.msg"
   "msg/SandStroke.msg"
   "msg/Bond.msg"
+  "msg/DrawingProgress.msg"
+
   "srv/PathPlanList.srv"
   "srv/TripleLayeredImages.srv"
   "srv/ProcessImage.srv"
+  "srv/StartDrawing.srv"
+
   DEPENDENCIES sensor_msgs
 )
 

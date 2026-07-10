@@ -1,0 +1,1674 @@
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 1 / 8
+   Base + Header
+   ========================================================= */
+
+
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+
+QMainWindow {
+    background: #031326;
+}
+
+QWidget {
+    background: #031326;
+    color: #FFFFFF;
+    font-family: "Segoe UI";
+    font-size: 14px;
+}
+
+QLabel {
+    background: transparent;
+    color: #FFFFFF;
+}
+
+QFrame {
+    background: transparent;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+QFrame#Header {
+    background: qlineargradient(
+        x1: 0,
+        y1: 0,
+        x2: 1,
+        y2: 0,
+        stop: 0 #061A33,
+        stop: 0.45 #0A2B52,
+        stop: 1 #061A33
+    );
+
+    border: 1px solid #2AA7FF;
+    border-radius: 16px;
+
+    min-height:78px;
+    max-height:78px;
+
+    padding: 10px;
+}
+
+
+/* =========================================================
+   HEADER TITLE
+   ========================================================= */
+
+QLabel#HeaderTitle {
+    color: #FFFFFF;
+
+    font-size: 28px;
+    font-weight: 800;
+
+    padding-left: 14px;
+    letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   HEADER STATUS LABELS
+   ========================================================= */
+
+QLabel#ModeLabel {
+    background: #0A84FF;
+
+    color: #FFFFFF;
+
+    border: 1px solid #58B8FF;
+    border-radius: 12px;
+
+    padding: 8px 20px;
+
+    font-size: 15px;
+    font-weight: 800;
+}
+
+QLabel#ReadyLabel {
+    background: #18A058;
+
+    color: #FFFFFF;
+
+    border: 1px solid #66E49B;
+    border-radius: 12px;
+
+    padding: 8px 20px;
+
+    font-size: 15px;
+    font-weight: 800;
+
+    margin-left: 8px;
+}
+
+
+/* =========================================================
+   COMMON TEXT
+   ========================================================= */
+
+QLabel#PageTitle {
+    color: #FFFFFF;
+
+    font-size: 32px;
+    font-weight: 900;
+
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+QLabel#PageDescription {
+    color: #CDEBFF;
+
+    font-size: 17px;
+    font-weight: 500;
+
+    padding-top: 2px;
+    padding-bottom: 6px;
+}
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 2 / 8
+   Sidebar + Step
+   ========================================================= */
+
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+QFrame#SideBar
+{
+    background:#071A31;
+
+    border:1px solid #1E4F88;
+
+    border-radius:24px;
+
+    min-width:250px;
+    max-width:250px;
+
+    padding-top:18px;
+    padding-bottom:18px;
+}
+
+
+/* =========================================================
+   STEP NORMAL
+   ========================================================= */
+
+QLabel#StepNormal
+{
+    background:transparent;
+
+    color:#90B8DD;
+
+    font-size:17px;
+
+    font-weight:600;
+
+    border-radius:12px;
+
+    padding-top:14px;
+    padding-bottom:14px;
+
+    padding-left:18px;
+
+    margin-left:10px;
+    margin-right:10px;
+    margin-top:3px;
+    margin-bottom:3px;
+}
+
+
+/* =========================================================
+   STEP HOVER
+   ========================================================= */
+
+QLabel#StepNormal:hover
+{
+    background:#0C315A;
+
+    color:white;
+
+    border:1px solid #2F80ED;
+}
+
+
+/* =========================================================
+   STEP ACTIVE
+   ========================================================= */
+
+QLabel#StepActive
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:1,
+        y2:0,
+        stop:0 #238BFF,
+        stop:1 #1265D8
+    );
+
+    color:white;
+
+    border:1px solid #58B8FF;
+
+    border-radius:16px;
+
+    font-size:18px;
+
+    font-weight:800;
+
+    padding-top:16px;
+    padding-bottom:16px;
+
+    padding-left:20px;
+
+    margin-left:8px;
+    margin-right:8px;
+    margin-top:5px;
+    margin-bottom:5px;
+}
+
+
+/* =========================================================
+   CONTENT FRAME
+   ========================================================= */
+
+QFrame#ContentFrame
+{
+    background:#06182E;
+
+    border:1px solid #1C4D86;
+
+    border-radius:18px;
+
+    padding:35px;
+}
+
+
+/* =========================================================
+   IMAGE PREVIEW
+   ========================================================= */
+
+QLabel#ImagePreview
+{
+    background:#03101F;
+
+    border:3px solid #2B6CB8;
+
+    border-radius:14px;
+
+    color:#6FAFE8;
+
+    font-size:18px;
+
+    font-weight:700;
+
+    padding:20px;
+}
+
+
+/* =========================================================
+   PREVIEW BOX
+   ========================================================= */
+
+QLabel#PreviewBox
+{
+    background:#041728;
+
+    border:1px solid #2B6CB8;
+
+    border-radius:12px;
+
+    color:white;
+
+    font-size:15px;
+
+    padding:14px;
+}
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 3 / 8
+   Cards + Buttons
+   ========================================================= */
+
+
+/* =========================================================
+   MENU CARD
+   ========================================================= */
+
+QFrame#MenuCard
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:0,
+        y2:1,
+        stop:0 #0B2546,
+        stop:1 #06182E
+    );
+
+    border:2px solid #215D9C;
+
+    border-radius:18px;
+
+    padding:16px;
+
+    min-width:280px;
+
+    min-height:330px;
+}
+
+
+QFrame#MenuCard:hover
+{
+    border:2px solid #3FA9FF;
+
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:0,
+        y2:1,
+        stop:0 #10335E,
+        stop:1 #08203B
+    );
+}
+
+
+/* =========================================================
+   MENU ICON
+   ========================================================= */
+
+QLabel#MenuIcon
+{
+    color:white;
+
+
+    font-weight:700;
+
+    padding-top:18px;
+    padding-bottom:12px;
+}
+
+
+/* =========================================================
+   MENU TITLE
+   ========================================================= */
+
+QLabel#MenuTitle
+{
+    color:white;
+
+    font-size:24px;
+
+    font-weight:800;
+
+    padding-top:6px;
+    padding-bottom:6px;
+}
+
+
+/* =========================================================
+   MENU DESCRIPTION
+   ========================================================= */
+
+QLabel#MenuDescription
+{
+    color:#B7D9F8;
+
+    font-size:15px;
+
+    line-height:24px;
+
+    padding-top:8px;
+    padding-bottom:18px;
+}
+
+
+/* =========================================================
+   PRIMARY BUTTON
+   ========================================================= */
+
+QPushButton
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:0,
+        y2:1,
+        stop:0 #2995FF,
+        stop:1 #1265D8
+    );
+
+    color:white;
+
+    border:none;
+
+    border-radius:12px;
+
+    min-height:42px;
+
+    padding-left:20px;
+    padding-right:20px;
+
+    font-size:16px;
+
+    font-weight:700;    
+}
+
+
+QPushButton:hover
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:0,
+        y2:1,
+        stop:0 #4AA9FF,
+        stop:1 #2B7CF0
+    );
+}
+
+
+QPushButton:pressed
+{
+    background:#0F4FA8;
+}
+
+
+/* =========================================================
+   PREVIOUS BUTTON
+   ========================================================= */
+
+QPushButton#PrevButton
+{
+    background:#0B2546;
+
+    border:1px solid #2B6CB8;
+
+    border-radius:16px;
+
+    min-width:150px;
+
+    min-height:50px;
+
+    color:white;
+
+    font-size:16px;
+
+    font-weight:700;
+}
+
+
+QPushButton#PrevButton:hover
+{
+    background:#12345C;
+
+    border:1px solid #52AFFF;
+}
+
+
+/* =========================================================
+   NEXT BUTTON
+   ========================================================= */
+
+QPushButton#NextButton
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:0,
+        y2:1,
+        stop:0 #2995FF,
+        stop:1 #1265D8
+    );
+
+    border:none;
+
+    border-radius:12px;
+
+    min-width:150px;
+
+    min-height:50px;
+
+    color:white;
+
+    font-size:16px;
+
+    font-weight:800;
+}
+
+
+QPushButton#NextButton:hover
+{
+    background:#43A9FF;
+}
+
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 4 / 8
+   Tool Card + Thumbnail + Info
+   ========================================================= */
+
+
+/* =========================================================
+   TOOL CARD
+   ========================================================= */
+
+QFrame#ToolCard
+{
+    background:#071D36;
+
+    border:2px solid #225A98;
+
+    border-radius:18px;
+
+    padding:18px;
+
+    min-width:230px;
+    min-height:320px;
+}
+
+
+QFrame#ToolCard:hover
+{
+    border:2px solid #43A9FF;
+
+    background:#0A2748;
+}
+
+
+/* =========================================================
+   TOOL IMAGE
+   ========================================================= */
+
+QLabel#ToolImage
+{
+    background:#04111F;
+
+    border:1px solid #2866A9;
+
+    border-radius:12px;
+
+    min-height:150px;
+
+    color:#8FC6FF;
+
+    font-size:18px;
+
+    font-weight:700;
+}
+
+
+/* =========================================================
+   TOOL NAME
+   ========================================================= */
+
+QLabel#ToolName
+{
+    color:white;
+
+    font-size:22px;
+
+    font-weight:800;
+
+    padding-top:10px;
+}
+
+
+/* =========================================================
+   TOOL INFO
+   ========================================================= */
+
+QLabel#ToolInfo
+{
+    color:#BEDFFF;
+
+    font-size:15px;
+
+    line-height:24px;
+
+    padding-top:8px;
+}
+
+
+/* =========================================================
+   THUMBNAIL
+   ========================================================= */
+
+QFrame#Thumbnail
+{
+    background:#051522;
+
+    border:2px solid #1D4C82;
+
+    border-radius:12px;
+
+    min-width:170px;
+    max-width:170px;
+
+    min-height:170px;
+    max-height:170px;
+}
+
+
+QFrame#Thumbnail:hover
+{
+    border:2px solid #4DB2FF;
+}
+
+
+/* =========================================================
+   SELECTED THUMBNAIL
+   ========================================================= */
+
+QFrame#ThumbnailSelected
+{
+    background:#082446;
+
+    border:3px solid #3FA9FF;
+
+    border-radius:12px;
+}
+
+
+/* =========================================================
+   INFO CARD
+   ========================================================= */
+
+QFrame#InfoCard
+{
+    background:#071A30;
+
+    border:1px solid #255A93;
+
+    border-radius:14px;
+
+    padding:16px;
+}
+
+
+/* =========================================================
+   INFO TITLE
+   ========================================================= */
+
+QLabel#InfoTitle
+{
+    color:white;
+
+    font-size:19px;
+
+    font-weight:700;
+
+    padding-bottom:10px;
+}
+
+
+/* =========================================================
+   INFO VALUE
+   ========================================================= */
+
+QLabel#InfoValue
+{
+    color:#7EC6FF;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    padding-top:4px;
+    padding-bottom:4px;
+}
+
+
+/* =========================================================
+   RESULT BOX
+   ========================================================= */
+
+QFrame#ResultBox
+{
+    background:#05131F;
+
+    border:1px solid #2866A9;
+
+    border-radius:14px;
+
+    padding:18px;
+}
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 5 / 8
+   Slider + SpinBox + Progress + Scroll
+   ========================================================= */
+
+
+/* =========================================================
+   SLIDER
+   ========================================================= */
+
+QSlider::groove:horizontal
+{
+    background:#08203A;
+
+    border:1px solid #2C6FB3;
+
+    border-radius:4px;
+
+    height:8px;
+}
+
+
+QSlider::sub-page:horizontal
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:1,
+        y2:0,
+        stop:0 #2AA7FF,
+        stop:1 #1265D8
+    );
+
+    border-radius:4px;
+}
+
+
+QSlider::add-page:horizontal
+{
+    background:#12314F;
+
+    border-radius:4px;
+}
+
+
+QSlider::handle:horizontal
+{
+    background:#FFFFFF;
+
+    border:2px solid #2AA7FF;
+
+    width:20px;
+
+    margin:-8px 0;
+
+    border-radius:10px;
+}
+
+
+QSlider::handle:horizontal:hover
+{
+    background:#DFF3FF;
+
+    border:2px solid #53BCFF;
+}
+
+
+/* =========================================================
+   SPIN BOX
+   ========================================================= */
+
+QSpinBox
+{
+    background:#071D36;
+
+    border:1px solid #2A6AAE;
+
+    border-radius:10px;
+
+    min-height:42px;
+
+    padding-left:12px;
+
+    color:white;
+
+    font-size:16px;
+
+    font-weight:700;
+}
+
+
+QSpinBox::up-button,
+QSpinBox::down-button
+{
+    width:26px;
+
+    border:none;
+
+    background:#0E4C92;
+}
+
+
+QSpinBox::up-button:hover,
+QSpinBox::down-button:hover
+{
+    background:#258BEB;
+}
+
+
+/* =========================================================
+   PROGRESS BAR
+   ========================================================= */
+
+QProgressBar
+{
+    background:#071A31;
+
+    border:1px solid #2866A9;
+
+    border-radius:10px;
+
+    text-align:center;
+
+    color:white;
+
+    font-size:15px;
+
+    font-weight:bold;
+
+    min-height:26px;
+}
+
+
+QProgressBar::chunk
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:1,
+        y2:0,
+        stop:0 #2AA7FF,
+        stop:1 #1472E8
+    );
+
+    border-radius:8px;
+}
+
+
+/* =========================================================
+   SCROLL AREA
+   ========================================================= */
+
+QScrollArea
+{
+    border:none;
+
+    background:transparent;
+}
+
+
+QScrollBar:vertical
+{
+    background:#04131F;
+
+    width:12px;
+
+    border-radius:6px;
+}
+
+
+QScrollBar::handle:vertical
+{
+    background:#2F80ED;
+
+    border-radius:6px;
+
+    min-height:40px;
+}
+
+
+QScrollBar::handle:vertical:hover
+{
+    background:#59B6FF;
+}
+
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical
+{
+    height:0px;
+}
+
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical
+{
+    background:transparent;
+}
+
+
+/* =========================================================
+   SEPARATOR
+   ========================================================= */
+
+QFrame#Separator
+{
+    background:#2A6AAE;
+
+    max-height:1px;
+
+    min-height:1px;
+}
+
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 6 / 8
+   Histogram + Edge + Running + Finish
+   ========================================================= */
+
+
+/* =========================================================
+   HISTOGRAM AREA
+   ========================================================= */
+
+QFrame#HistogramFrame
+{
+    background:#05131F;
+
+    border:2px solid #2866A9;
+
+    border-radius:16px;
+
+    padding:16px;
+}
+
+
+QLabel#HistogramTitle
+{
+    color:white;
+
+    font-size:20px;
+
+    font-weight:800;
+
+    padding-bottom:10px;
+}
+
+
+QLabel#HistogramGraph
+{
+    background:#071D36;
+
+    border:1px solid #3A84D8;
+
+    border-radius:12px;
+
+    min-height:320px;
+
+    color:#7FC8FF;
+
+    font-size:18px;
+
+    font-weight:700;
+}
+
+
+/* =========================================================
+   ANALYSIS CARD
+   ========================================================= */
+
+QFrame#AnalysisCard
+{
+    background:#071D36;
+
+    border:1px solid #2C6FB3;
+
+    border-radius:14px;
+
+    padding:14px;
+}
+
+
+QLabel#AnalysisTitle
+{
+    color:white;
+
+    font-size:18px;
+
+    font-weight:700;
+}
+
+
+QLabel#AnalysisValue
+{
+    color:#8FD2FF;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    padding-top:4px;
+}
+
+
+/* =========================================================
+   EDGE PREVIEW
+   ========================================================= */
+
+QFrame#EdgeFrame
+{
+    background:#05131F;
+
+    border:2px solid #2D72BA;
+
+    border-radius:16px;
+
+    padding:16px;
+}
+
+
+QLabel#EdgeImage
+{
+    background:#071D36;
+
+    border:1px solid #459DFF;
+
+    border-radius:12px;
+
+    min-height:340px;
+
+    color:#89CCFF;
+
+    font-size:18px;
+
+    font-weight:700;
+}
+
+
+/* =========================================================
+   RUNNING STATUS
+   ========================================================= */
+
+QFrame#RunningCard
+{
+    background:#071D36;
+
+    border:2px solid #2F80ED;
+
+    border-radius:16px;
+
+    padding:18px;
+}
+
+
+QLabel#RunningTitle
+{
+    color:white;
+
+    font-size:22px;
+
+    font-weight:800;
+}
+
+
+QLabel#RunningValue
+{
+    color:#77C8FF;
+
+    font-size:18px;
+
+    font-weight:700;
+}
+
+
+/* =========================================================
+   FINISH CARD
+   ========================================================= */
+
+QFrame#FinishCard
+{
+    background:qlineargradient(
+        x1:0,
+        y1:0,
+        x2:0,
+        y2:1,
+        stop:0 #0B2A4A,
+        stop:1 #071A30
+    );
+
+    border:2px solid #39A7FF;
+
+    border-radius:18px;
+
+    padding:22px;
+}
+
+
+QLabel#FinishTitle
+{
+    color:white;
+
+    font-size:32px;
+
+    font-weight:900;
+}
+
+
+QLabel#FinishDescription
+{
+    color:#B9E3FF;
+
+    font-size:17px;
+
+    line-height:28px;
+}
+
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 7 / 8
+   LineEdit + ComboBox + Table + CheckBox + RadioButton
+   ========================================================= */
+
+
+/* =========================================================
+   LINE EDIT
+   ========================================================= */
+
+QLineEdit
+{
+    background:#071D36;
+
+    color:white;
+
+    border:1px solid #2D72BA;
+
+    border-radius:10px;
+
+    min-height:42px;
+
+    padding-left:12px;
+
+    font-size:15px;
+}
+
+
+QLineEdit:focus
+{
+    border:2px solid #48B0FF;
+}
+
+
+/* =========================================================
+   COMBO BOX
+   ========================================================= */
+
+QComboBox
+{
+    background:#071D36;
+
+    color:white;
+
+    border:1px solid #2D72BA;
+
+    border-radius:10px;
+
+    min-height:42px;
+
+    padding-left:12px;
+
+    font-size:15px;
+}
+
+
+QComboBox:hover
+{
+    border:1px solid #4CB6FF;
+}
+
+
+QComboBox::drop-down
+{
+    border:none;
+
+    width:34px;
+}
+
+
+QComboBox QAbstractItemView
+{
+    background:#06182E;
+
+    color:white;
+
+    border:1px solid #2D72BA;
+
+    selection-background-color:#2F80ED;
+
+    outline:none;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+QTableWidget
+{
+    background:#06182E;
+
+    color:white;
+
+    gridline-color:#2D72BA;
+
+    border:1px solid #2D72BA;
+
+    border-radius:12px;
+
+    selection-background-color:#2F80ED;
+}
+
+
+QHeaderView::section
+{
+    background:#10335E;
+
+    color:white;
+
+    border:none;
+
+    padding-left:24px;
+    padding-right:24px;
+    padding-top:12px;
+    padding-bottom:12px;
+
+    font-weight:bold;
+}
+
+
+QTableCornerButton::section
+{
+    background:#10335E;
+
+    border:none;
+}
+
+
+/* =========================================================
+   CHECK BOX
+   ========================================================= */
+
+QCheckBox
+{
+    color:white;
+
+    spacing:10px;
+
+    font-size:15px;
+}
+
+
+QCheckBox::indicator
+{
+    width:18px;
+
+    height:18px;
+}
+
+
+QCheckBox::indicator:unchecked
+{
+    background:#06182E;
+
+    border:2px solid #2F80ED;
+
+    border-radius:4px;
+}
+
+
+QCheckBox::indicator:checked
+{
+    background:#2F80ED;
+
+    border:2px solid #59B6FF;
+
+    border-radius:4px;
+}
+
+
+/* =========================================================
+   RADIO BUTTON
+   ========================================================= */
+
+QRadioButton
+{
+    color:white;
+
+    spacing:10px;
+
+    font-size:15px;
+}
+
+
+QRadioButton::indicator
+{
+    width:18px;
+
+    height:18px;
+}
+
+
+QRadioButton::indicator:unchecked
+{
+    border:2px solid #2F80ED;
+
+    border-radius:9px;
+
+    background:#06182E;
+}
+
+
+QRadioButton::indicator:checked
+{
+    border:2px solid #59B6FF;
+
+    border-radius:9px;
+
+    background:#2F80ED;
+}
+
+/* =========================================================
+   Sand Art Robot HMI
+   styles/dark_theme.qss
+
+   PART 8 / 8
+   Dialog + Tabs + GroupBox + Finish
+   ========================================================= */
+
+
+/* =========================================================
+   GROUP BOX
+   ========================================================= */
+
+QGroupBox
+{
+    color:white;
+
+    font-size:18px;
+
+    font-weight:700;
+
+    border:1px solid #2F80ED;
+
+    border-radius:12px;
+
+    margin-top:14px;
+
+    padding-top:18px;
+
+    background:#06182E;
+}
+
+
+QGroupBox::title
+{
+    subcontrol-origin: margin;
+
+    left:16px;
+
+    padding-left:6px;
+    padding-right:6px;
+}
+
+
+/* =========================================================
+   TAB WIDGET
+   ========================================================= */
+
+QTabWidget::pane
+{
+    background:#06182E;
+
+    border:2px solid #47B4FF;
+
+    border-radius:12px;
+}
+
+
+QTabBar::tab
+{
+    background:#0B2546;
+
+    color:white;
+
+    padding:12px 26px;
+
+    border-top-left-radius:10px;
+    border-top-right-radius:10px;
+
+    margin-right:3px;
+}
+
+
+QTabBar::tab:selected
+{
+    background:#2F80ED;
+
+    font-weight:bold;
+}
+
+
+QTabBar::tab:hover
+{
+    background:#174A83;
+}
+
+
+/* =========================================================
+   DIALOG
+   ========================================================= */
+
+QDialog
+{
+    background:#031326;
+}
+
+
+QMessageBox
+{
+    background:#06182E;
+}
+
+
+QMessageBox QLabel
+{
+    color:white;
+
+    font-size:15px;
+}
+
+
+QMessageBox QPushButton
+{
+    min-width:120px;
+}
+
+
+/* =========================================================
+   TOOLTIP
+   ========================================================= */
+
+QToolTip
+{
+    background:#12345C;
+
+    color:white;
+
+    border:1px solid #4DB2FF;
+
+    border-radius:8px;
+
+    padding:8px;
+
+    font-size:14px;
+}
+
+
+/* =========================================================
+   STATUS BAR
+   ========================================================= */
+
+QStatusBar
+{
+    background:#06182E;
+
+    color:#BFE3FF;
+
+    border-top:1px solid #2F80ED;
+}
+
+
+/* =========================================================
+   SPLITTER
+   ========================================================= */
+
+QSplitter::handle
+{
+    background:#2F80ED;
+}
+
+
+QSplitter::handle:hover
+{
+    background:#58B8FF;
+}
+
+
+/* =========================================================
+   DISABLED
+   ========================================================= */
+
+QWidget:disabled
+{
+    color:#6F7C89;
+}
+
+
+QPushButton:disabled
+{
+    background:#2D3E52;
+
+    color:#93A1AE;
+
+    border:none;
+}
+
+
+QLineEdit:disabled,
+QSpinBox:disabled,
+QComboBox:disabled
+{
+    background:#203040;
+
+    color:#8895A3;
+}
+
+/* =========================================================
+   추가 스타일: ProgressBar
+   ========================================================= */
+
+QProgressBar {
+    background: #071A31;
+    border: 1px solid #2866A9;
+    border-radius: 12px;
+    text-align: center;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    min-height: 30px;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(
+        x1:0, y1:0,
+        x2:1, y2:0,
+        stop:0 #2AA7FF,
+        stop:1 #1472E8
+    );
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   추가 스타일: Slider
+   ========================================================= */
+
+QSlider::groove:horizontal {
+    background: #10263D;
+    border: 1px solid #2C6FB3;
+    border-radius: 5px;
+    height: 10px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #2AA7FF;
+    border-radius: 5px;
+}
+
+QSlider::add-page:horizontal {
+    background: #1A3148;
+    border-radius: 5px;
+}
+
+QSlider::handle:horizontal {
+    background: white;
+    border: 2px solid #2AA7FF;
+    width: 22px;
+    margin: -8px 0;
+    border-radius: 11px;
+}
+
+
+/* =========================================================
+   추가 스타일: ComboBox
+   ========================================================= */
+
+QComboBox {
+    background: #071D36;
+    color: white;
+    border: 1px solid #2D72BA;
+    border-radius: 10px;
+    min-height: 42px;
+    padding-left: 12px;
+    font-size: 15px;
+}
+
+QComboBox:hover {
+    border: 1px solid #4CB6FF;
+}
+
+
+/* =========================================================
+   추가 스타일: ScrollBar
+   ========================================================= */
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+QScrollBar:vertical {
+    background: #04131F;
+    width: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background: #2F80ED;
+    border-radius: 6px;
+    min-height: 40px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #59B6FF;
+}
+
+
+/* =========================================================
+   추가 스타일: Thumbnail
+   ========================================================= */
+
+QFrame#Thumbnail {
+    background: #051522;
+    border: 2px solid #1D4C82;
+    border-radius: 14px;
+    min-width: 170px;
+    min-height: 170px;
+}
+
+QFrame#Thumbnail:hover {
+    border: 2px solid #49B2FF;
+    background: #0A2748;
+}
+
+QFrame#ThumbnailSelected {
+    background: #082446;
+    border: 3px solid #3FA9FF;
+    border-radius: 14px;
+}
+
+QFrame#MenuCardSelected
+{
+    background:#1d3350;
+    border:3px solid #55b6ff;
+    border-radius:22px;
+}
+/* =========================================================
+   END
+   ========================================================= */
