@@ -62,24 +62,26 @@ class SandClearNode(Node):
 
         self.home_joint = self.posj(0.0, 0.0, 90.0, 0.0, 90.0, 0.0)
 
-        self.p_grip = (374.670, -192.170, 88.130, 118.87, 179.86, 118.38)
-        self.p_grip_raise = (368.730, -189.280, 222.660, 167.92, -179.93, 166.39)
+        self.p_grip = (375.12, -199.80, 92.43, 172.63, 179.66, 172.45)
+        self.p_grip_raise = (375.12, -199.80, 228.13, 172.63, 179.66, 172.45)
 
-        self.p_for_above = (374.890, 171.370, 231.220, 136.8, 179.82, 135.74)
-        self.p_for_above_tilt = (372.610, 103.720, 231.220, 88.54, 145.26, 85.66)
-        self.p_for_ground_1 = (372.610, 103.720, 142.750, 88.54, 145.26, 85.66)
-        self.p_for_ground_2 = (372.610, 53.720, 102.750, 88.54, 145.26, 85.66)
-        self.p_for_end = (372.610, -140.320, 102.750, 88.54, 145.26, 85.66)
-        self.p_for_end_above = (372.610, -140.320, 200.040, 88.54, 145.26, 85.66)
+        # self.p_back_above = (374.830, -175.650, 200.040, 98.71, -173.18, 94.02)
+        self.p_back_above_tilt = (377.51, -124.05, 232.54, 94.30, -142.84, 92.23)
+        self.p_back_ground_1 = (377.28, -118.96, 124.55, 95.04, -136.15, 91.91)
+        self.p_back_ground_2 = (380.67, -95.49, 103.23, 93.31, -134.28, 87.64)
+        self.p_back_end = (380.67, 193.52, 103.23, 93.31, -134.28, 87.64)
+        # self.p_back_end_above = (378.180, 150.150, 200.040, 95.99, -143.94, 89.96)
 
-        self.p_back_above = (374.830, -175.650, 200.040, 98.71, -173.18, 94.02)
-        self.p_back_above_tilt = (378.190, -92.350, 200.040, 96.0, -143.94, 89.96)
-        self.p_back_ground_1 = (378.190, -92.350, 134.110, 96.0, -143.94, 89.96)
-        self.p_back_ground_2 = (378.190, -42.350, 99.110, 96.0, -143.94, 89.96)
-        self.p_back_end = (378.180, 150.150, 99.110, 95.99, -143.94, 89.96)
-        self.p_back_end_above = (378.180, 150.150, 200.040, 95.99, -143.94, 89.96)
+        # self.p_for_above = (380.17, 138.85, 202.70, 82.72, 149.02, 80.49)
+        self.p_for_above_tilt = (380.17, 138.85, 202.70, 82.72, 149.02, 80.49)
+        self.p_for_ground_1 = (377.74, 121.34, 125.37, 84.77, 135.28, 83.61)
+        self.p_for_ground_2 = (378.28, 82.94, 81.66, 84.69, 130.35, 83.22)  #81.66
+        self.p_for_end = (378.29, -223.41, 81.66, 84.69, 130.35, 83.22)
+        self.p_for_end_above = (381.26, -162.89, 210.95, 144.93, -174.96, 141.02)
 
-        self.p_release = (374.670, -192.170, 98.130, 118.87, 179.86, 118.38)
+        self.p_release_raise = (375.12, -234.23, 228.13, 172.63, 179.66, 172.45)
+        self.p_release = (375.12, -234.23, 97.43, 172.63, 179.66, 172.45)        
+
         self.start_clear_srv = self.create_service(
             Trigger,
             "start_sand_clear",
@@ -221,23 +223,25 @@ class SandClearNode(Node):
         self.gripper_close()
 
         motion_points = [
+
             (self.p_grip_raise, 70, 70),
 
-            (self.p_for_above, 70, 70),
+            # (self.p_back_above, 70, 70),
+            (self.p_back_above_tilt, 70, 70),
+            (self.p_back_ground_1, 50, 50),
+            (self.p_back_ground_2, MOVEL_VEL, MOVEL_ACC),
+            (self.p_back_end, MOVEL_VEL, MOVEL_ACC),
+            # (self.p_back_end_above, 50, 50),
+    
+
+            # (self.p_for_above, 70, 70),
             (self.p_for_above_tilt, 70, 70),
             (self.p_for_ground_1, 50, 50),
             (self.p_for_ground_2, MOVEL_VEL, MOVEL_ACC),
             (self.p_for_end, MOVEL_VEL, MOVEL_ACC),
             (self.p_for_end_above, 50, 50),
 
-            (self.p_back_above, 70, 70),
-            (self.p_back_above_tilt, 70, 70),
-            (self.p_back_ground_1, 50, 50),
-            (self.p_back_ground_2, MOVEL_VEL, MOVEL_ACC),
-            (self.p_back_end, MOVEL_VEL, MOVEL_ACC),
-            (self.p_back_end_above, 50, 50),
-
-            (self.p_grip_raise, 70, 70),
+            (self.p_release_raise, 70, 70),
             (self.p_release, MOVEL_VEL, MOVEL_ACC),
         ]
 
